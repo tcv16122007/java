@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cá nhân - Blog SE</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="index.html"><i class="bi bi-pencil-square"></i> Blog SE</a>
+            <div class="d-flex align-items-center">
+                <span id="userInfo" class="text-white me-2 d-none"></span>
+                <button class="btn btn-outline-light btn-sm me-2" onclick="toggleTheme()"><i
+                        class="bi bi-moon-stars"></i></button>
+                <a href="#" class="btn btn-outline-light me-2" id="loginBtn"
+                    onclick="window.location.href='login.html'">Đăng nhập</a>
+                <a href="#" class="btn btn-danger d-none" id="logoutBtn" onclick="logout()">Đăng xuất</a>
+                <a href="dashboard.html" class="btn btn-light ms-2 d-none" id="dashboardBtn">Dashboard</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card p-3 text-center">
+                    <img src="https://ui-avatars.com/api/?name=User&background=667eea&color=fff&size=128"
+                        class="rounded-circle mx-auto mb-3" style="width:120px;height:120px;object-fit:cover;">
+                    <h5 id="profileName">Người dùng</h5>
+                    <p class="text-muted" id="profileRole">USER</p>
+                </div>
+                <div class="card p-3 mt-3">
+                    <h6><i class="bi bi-palette"></i> Tùy chỉnh giao diện</h6>
+                    <hr>
+                    <div class="mb-2">
+                        <label class="form-label small">Màu chính</label>
+                        <input type="color" id="primaryColor" class="form-control form-control-color" value="#0d6efd"
+                            onchange="updateSetting('primaryColor', this.value)">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Màu nền</label>
+                        <input type="color" id="backgroundColor" class="form-control form-control-color" value="#ffffff"
+                            onchange="updateSetting('backgroundColor', this.value)">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Font chữ</label>
+                        <select id="fontFamily" class="form-select" onchange="updateSetting('fontFamily', this.value)">
+                            <option value="system-ui">Mặc định</option>
+                            <option value="Inter, sans-serif">Inter</option>
+                            <option value="Roboto, sans-serif">Roboto</option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="'Courier New', monospace">Courier New</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">CSS tùy chỉnh</label>
+                        <textarea id="customCss" class="form-control" rows="3"
+                            placeholder="Nhập CSS tùy chỉnh..."></textarea>
+                        <button class="btn btn-sm btn-primary mt-1" onclick="saveCustomCss()"><i class="bi bi-save"></i>
+                            Lưu CSS</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="card p-4">
+                    <h5><i class="bi bi-person-gear"></i> Thông tin cá nhân</h5>
+                    <hr>
+                    <form id="profileForm">
+                        <div class="mb-3">
+                            <label class="form-label">Họ tên</label>
+                            <input type="text" id="fullName" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" id="email" class="form-control">
+                        </div>
+                        <hr>
+                        <h6>Đổi mật khẩu</h6>
+                        <div class="mb-3">
+                            <label class="form-label">Mật khẩu cũ</label>
+                            <input type="password" id="oldPassword" class="form-control" placeholder="Nhập mật khẩu cũ">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Mật khẩu mới</label>
+                            <input type="password" id="newPassword" class="form-control"
+                                placeholder="Nhập mật khẩu mới (ít nhất 4 ký tự)">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Xác nhận mật khẩu mới</label>
+                            <input type="password" id="confirmPassword" class="form-control"
+                                placeholder="Xác nhận mật khẩu mới">
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Cập nhật</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        let currentUser = null;
+        let settings = {};
+
+        function updateUI(user) {
+            const info = document.getElementById('userInfo');
+            const login = document.getElementById('loginBtn');
+            const logout = document.getElementById('logoutBtn');
+            const dash = document.getElementById('dashboardBtn');
+            if (user) {
+                info.textContent = '👤 ' + user.fullName;
+                info.classList.remove('d-none');
+                login.classList.add('d-none');
+                logout.classList.remove('d-none');
+                dash.classList.remove('d-none');
+                document.getElementById('profileName').textContent = user.fullName;
+                document.getElementById('profileRole').textContent = user.role;
+                document.getElementById('fullName').value = user.fullName;
+                document.getElementById('email').value = user.email || '';
+            } else {
+                info.classList.add('d-none');
+                login.classList.remove('d-none');
+                logout.classList.add('d-none');
+                dash.classList.add('d-none');
+            }
+        }
+
+        async function checkLogin() {
+            try {
+                const res = await callApi('GET', '/current-user');
+                if (res.success) {
+                    currentUser = res.user;
+                    updateUI(currentUser);
+                    loadSettings();
+                } else {
+                    window.location.href = 'login.html';
+                }
+            } catch (e) { window.location.href = 'login.html'; }
+        }
+
+        async function loadSettings() {
+            if (!currentUser) return;
+            const res = await callApi('GET', '/settings');
+            if (res && !res.error) {
+                settings = res;
+                document.getElementById('primaryColor').value = res.primaryColor || '#0d6efd';
+                document.getElementById('backgroundColor').value = res.backgroundColor || '#ffffff';
+                document.getElementById('fontFamily').value = res.fontFamily || 'system-ui';
+                document.getElementById('customCss').value = res.customCss || '';
+                applySettings(res);
+            }
+        }
+
+        function applySettings(settings) {
+            const root = document.documentElement;
+            root.style.setProperty('--primary-color', settings.primaryColor || '#0d6efd');
+            root.style.setProperty('--bg-color', settings.backgroundColor || '#ffffff');
+            document.body.style.fontFamily = settings.fontFamily || 'system-ui';
+            const styleEl = document.getElementById('customStyle') || (() => {
+                const el = document.createElement('style');
+                el.id = 'customStyle';
+                document.head.appendChild(el);
+                return el;
+            })();
+            styleEl.textContent = settings.customCss || '';
+        }
+
+        async function updateSetting(key, value) {
+            if (!currentUser) return;
+            const data = { ...settings, [key]: value };
+            const result = await callApi('POST', '/settings', data);
+            if (result.success) {
+                settings[key] = value;
+                applySettings(settings);
+                showToast('Đã cập nhật', 'success');
+            }
+        }
+
+        async function saveCustomCss() {
+            const css = document.getElementById('customCss').value;
+            await updateSetting('customCss', css);
+        }
+
+        document.getElementById('profileForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const fullName = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const oldPassword = document.getElementById('oldPassword').value.trim();
+            const newPassword = document.getElementById('newPassword').value.trim();
+            const confirmPassword = document.getElementById('confirmPassword').value.trim();
+
+            if (!fullName) { showToast('Họ tên không được để trống', 'danger'); return; }
+            if (email && !email.includes('@')) { showToast('Email không hợp lệ', 'danger'); return; }
+
+            // Nếu có nhập mật khẩu mới
+            if (newPassword || confirmPassword || oldPassword) {
+                if (!oldPassword) { showToast('Vui lòng nhập mật khẩu cũ', 'danger'); return; }
+                if (newPassword.length < 4) { showToast('Mật khẩu mới phải có ít nhất 4 ký tự', 'danger'); return; }
+                if (newPassword !== confirmPassword) { showToast('Mật khẩu xác nhận không khớp', 'danger'); return; }
+            }
+
+            // Gọi API cập nhật profile
+            const data = { fullName, email };
+            if (oldPassword && newPassword) {
+                data.oldPassword = oldPassword;
+                data.newPassword = newPassword;
+            }
+            const result = await callApi('POST', '/users', { action: 'updateProfile', ...data });
+            if (result.success) {
+                showToast('Đã cập nhật thông tin', 'success');
+                currentUser.fullName = fullName;
+                currentUser.email = email;
+                updateUI(currentUser);
+                document.getElementById('oldPassword').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+            } else {
+                showToast(result.message || 'Lỗi', 'danger');
+            }
+        });
+
+        async function logout() {
+            await callApi('POST', '/logout');
+            currentUser = null;
+            window.location.href = 'login.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadTheme();
+            checkLogin();
+        });
+    </script>
+</body>
+
+</html>

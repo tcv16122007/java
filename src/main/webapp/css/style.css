@@ -1,0 +1,281 @@
+/* ===== RESET & BASE ===== */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #f4f6f9;
+    color: #1a1a2e;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+a {
+    text-decoration: none;
+}
+
+/* ===== DARK THEME CẢI TIẾN ===== */
+body.dark-theme {
+    background: #0d0d1a;
+    color: #e8e8e8;
+}
+
+body.dark-theme .card,
+body.dark-theme .filter-section,
+body.dark-theme .sidebar,
+body.dark-theme .form-control,
+body.dark-theme .list-group-item,
+body.dark-theme .modal-content,
+body.dark-theme .login-card {
+    background: #1a1a2e;
+    color: #e8e8e8;
+    border-color: #2a2a4a;
+}
+
+body.dark-theme .card-footer {
+    background: #12121f;
+    border-color: #2a2a4a;
+}
+
+body.dark-theme .navbar {
+    background: #0a0a15 !important;
+    border-bottom: 1px solid #2a2a4a;
+}
+
+body.dark-theme .text-muted {
+    color: #a0a0b8 !important;
+}
+
+body.dark-theme .btn-outline-light {
+    color: #ccc;
+    border-color: #444;
+}
+
+body.dark-theme .btn-outline-light:hover {
+    background: #333;
+    color: #fff;
+}
+
+body.dark-theme .table {
+    color: #e8e8e8;
+}
+
+body.dark-theme .table-striped>tbody>tr:nth-of-type(odd) {
+    background: #14142a;
+}
+
+body.dark-theme .table-hover>tbody>tr:hover {
+    background: #1e1e3a;
+}
+
+body.dark-theme .form-control {
+    background: #14142a;
+    color: #e8e8e8;
+    border-color: #2a2a4a;
+}
+
+body.dark-theme .form-control:focus {
+    background: #1a1a2e;
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+body.dark-theme .nav-link {
+    color: #b0b0c8;
+}
+
+body.dark-theme .nav-link:hover {
+    background: #2a2a4a;
+    color: #fff;
+}
+
+body.dark-theme .nav-link.active {
+    background: #667eea;
+    color: white !important;
+}
+
+body.dark-theme .dropdown-menu {
+    background: #1a1a2e;
+    border-color: #2a2a4a;
+}
+
+body.dark-theme .dropdown-item {
+    color: #e8e8e8;
+}
+
+body.dark-theme .dropdown-item:hover {
+    background: #2a2a4a;
+}
+
+body.dark-theme .border-bottom {
+    border-color: #2a2a4a !important;
+}
+
+body.dark-theme .comment-box {
+    background: #14142a;
+}
+
+/* ===== NAVBAR ===== */
+.navbar {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+    font-weight: 700;
+}
+
+/* ===== HERO ===== */
+.hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 60px 0;
+}
+
+/* ===== CARDS ===== */
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    background: white;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+/* ===== FILTER SECTION ===== */
+.filter-section {
+    background: white;
+    padding: 16px 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+    background: white;
+    min-height: 100vh;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+    padding: 20px 0;
+}
+
+.nav-link {
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin: 2px 12px;
+    transition: 0.2s;
+    color: #555;
+}
+
+.nav-link:hover {
+    background: #e9ecef;
+    color: #1a1a2e;
+}
+
+.nav-link.active {
+    background: #667eea;
+    color: white !important;
+}
+
+/* ===== BUTTONS ===== */
+.btn-primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    transition: all 0.3s;
+}
+
+.btn-primary:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-outline-primary {
+    border-radius: 20px;
+}
+
+.btn-sm {
+    border-radius: 20px;
+}
+
+/* ===== LOGIN CARD ===== */
+.login-card {
+    background: white;
+    border-radius: 24px;
+    padding: 48px;
+    max-width: 440px;
+    margin: 0 auto;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+    animation: fadeInUp 0.6s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== BADGE ===== */
+.badge-custom {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.8rem;
+}
+
+/* ===== POST META ===== */
+.post-meta {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+/* ===== COMMENTS ===== */
+.comment-box {
+    background: #f1f3f5;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+}
+
+/* ===== LIKE BUTTON ===== */
+.like-btn {
+    cursor: pointer;
+    transition: 0.2s;
+    border-radius: 30px;
+}
+
+.like-btn:hover {
+    transform: scale(1.05);
+}
+
+/* ===== TOAST ===== */
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .sidebar {
+        min-height: auto;
+    }
+
+    .login-card {
+        padding: 30px;
+        margin: 20px;
+    }
+
+    .hero {
+        padding: 40px 0;
+    }
+}

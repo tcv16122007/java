@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Blog SE</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="index.html"><i class="bi bi-pencil-square"></i> Blog SE</a>
+            <div class="d-flex align-items-center">
+                <span class="text-white me-2" id="userInfo"></span>
+                <button class="btn btn-outline-light btn-sm me-2" onclick="toggleTheme()"><i
+                        class="bi bi-moon-stars"></i></button>
+                <a href="#" class="btn btn-danger btn-sm me-2" onclick="logout()">Đăng xuất</a>
+                <a href="index.html" class="btn btn-outline-light btn-sm">Trang chủ</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-2 d-md-block sidebar p-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" onclick="loadSection('posts')"><i
+                                class="bi bi-file-text"></i> Bài viết</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="loadSection('write')"><i class="bi bi-pencil"></i> Viết
+                            bài</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="loadSection('categories')"><i class="bi bi-tags"></i> Danh
+                            mục</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="loadSection('comments')"><i class="bi bi-chat"></i> Bình
+                            luận</a>
+                    </li>
+                    <li class="nav-item" id="modMenu" style="display:none;">
+                        <a class="nav-link" href="#" onclick="loadSection('moderation')"><i
+                                class="bi bi-check-circle"></i> Duyệt bài</a>
+                    </li>
+                    <li class="nav-item" id="adminMenu" style="display:none;">
+                        <a class="nav-link" href="#" onclick="loadSection('users')"><i class="bi bi-people"></i> Người
+                            dùng</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="profile.html"><i class="bi bi-person-gear"></i> Cá nhân</a>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Content -->
+            <main class="col-md-10 p-4">
+                <div id="dashContent">
+                    <h4><i class="bi bi-file-text"></i> Quản lý bài viết</h4>
+                    <div id="postsContainer"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        let currentUser = null;
+
+        function updateUI(user) {
+            document.getElementById('userInfo').textContent = '👤 ' + user.fullName;
+            if (user.role === 'MODERATOR' || user.role === 'ADMIN') {
+                document.getElementById('modMenu').style.display = 'block';
+            } else {
+                document.getElementById('modMenu').style.display = 'none';
+            }
+            if (user.role === 'ADMIN') {
+                document.getElementById('adminMenu').style.display = 'block';
+            } else {
+                document.getElementById('adminMenu').style.display = 'none';
+            }
+        }
+
+        async function checkLogin() {
+            const res = await callApi('GET', '/current-user');
+            if (res.success) {
+                currentUser = res.user;
+                updateUI(currentUser);
+                loadSection('posts');
+            } else {
+                window.location.href = 'login.html';
+            }
+        }
+
+        async function loadSection(section) {
+            const content = document.getElementById('dashContent');
+            switch (section) {
+                case 'posts':
+                    content.innerHTML = `
+                        <h4><i class="bi bi-file-text"></i> Quản lý bài viết</h4>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead><tr><th>ID</th><th>Tiêu đề</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+                                <tbody id="myPostsBody"><tr><td colspan="4" class="text-center text-muted">Đang tải...</td></tr></tbody>
+                            </table>
+                        </div>`;
+                    await loadMyPosts();
+                    break;
+                case 'write':
+                    content.innerHTML = `
+                        <h4><i class="bi bi-pencil"></i> Viết bài mới</h4>
+                        <div class="card p-3">
+                            <form id="writeForm">
+                                <div class="mb-2"><input type="text" id="postTitle" class="form-control" placeholder="Tiêu đề" required></div>
+                                <div class="mb-2"><input type="text" id="postSummary" class="form-control" placeholder="Tóm tắt"></div>
+                                <div class="mb-2"><select id="postCategory" class="form-select"></select></div>
+                                <div class="mb-2"><textarea id="postContent" class="form-control" rows="6" placeholder="Nội dung..."></textarea></div>
+                                <button type="submit" class="btn btn-primary">Đăng bài</button>
+                            </form>
+                        </div>
+                    `;
+                    await loadCategoryOptions();
+                    document.getElementById('writeForm').addEventListener('submit', submitPost);
+                    break;
+                case 'categories':
+                    content.innerHTML = `
+                        <h4><i class="bi bi-tags"></i> Danh mục</h4>
+                        <div id="categoryList" class="table-responsive"></div>`;
+                    await loadCategories();
+                    break;
+                case 'comments':
+                    content.innerHTML = `
+                        <h4><i class="bi bi-chat"></i> Quản lý bình luận</h4>
+                        <div id="commentList" class="table-responsive"></div>`;
+                    await loadAllComments();
+                    break;
+                case 'moderation':
+                    content.innerHTML = `
+                        <h4><i class="bi bi-check-circle"></i> Duyệt bài</h4>
+                        <div id="pendingPosts"></div>`;
+                    await loadPendingPosts();
+                    break;
+                case 'users':
+                    content.innerHTML = `
+                        <h4><i class="bi bi-people"></i> Quản lý người dùng</h4>
+                        <div class="input-group mb-2" style="max-width:300px;">
+                            <input type="text" id="searchUserInput" class="form-control" placeholder="Tìm user..." onkeyup="loadUsers()">
+                            <button class="btn btn-outline-secondary" onclick="document.getElementById('searchUserInput').value=''; loadUsers()">✕</button>
+                        </div>
+                        <div id="userList" class="table-responsive"></div>`;
+                    await loadUsers();
+                    break;
+            }
+        }
+
+        // ---- My Posts ----
+        async function loadMyPosts() {
+            const posts = await callApi('GET', '/posts?action=my');
+            const tbody = document.getElementById('myPostsBody');
+            if (!posts || posts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Chưa có bài viết</td></tr>';
+                return;
+            }
+            tbody.innerHTML = posts.map(p => `
+                <tr>
+                    <td>${p.postId}</td>
+                    <td>${p.title}</td>
+                    <td>${getStatusBadge(p.status)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deletePost(${p.postId})"><i class="bi bi-trash"></i></button>
+                        ${p.status === 'REJECTED' ? `<button class="btn btn-sm btn-warning" onclick="resubmitPost(${p.postId})">Gửi lại</button>` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function deletePost(id) {
+            if (!confirm('Xóa bài viết này?')) return;
+            const result = await callApi('POST', '/posts', { action: 'delete', id });
+            if (result.success) { showToast('Đã xóa', 'success'); loadMyPosts(); }
+            else showToast(result.message || 'Lỗi', 'danger');
+        }
+
+        async function resubmitPost(id) {
+            const result = await callApi('POST', '/posts', { action: 'resubmit', id });
+            if (result.success) { showToast('Đã gửi lại', 'success'); loadMyPosts(); }
+            else showToast(result.message || 'Lỗi', 'danger');
+        }
+
+        // ---- Write ----
+        async function loadCategoryOptions() {
+            const cats = await callApi('GET', '/categories');
+            const sel = document.getElementById('postCategory');
+            if (cats) sel.innerHTML = cats.map(c => `<option value="${c.categoryId}">${c.categoryName}</option>`).join('');
+        }
+
+        async function submitPost(e) {
+            e.preventDefault();
+            const title = document.getElementById('postTitle').value.trim();
+            const content = document.getElementById('postContent').value.trim();
+            if (!title || !content) { showToast('Vui lòng nhập đủ tiêu đề và nội dung', 'danger'); return; }
+            const data = {
+                action: 'add',
+                title,
+                content,
+                summary: document.getElementById('postSummary').value.trim(),
+                categoryId: document.getElementById('postCategory').value
+            };
+            const result = await callApi('POST', '/posts', data);
+            if (result.success) {
+                showToast('✅ ' + result.message, 'success');
+                loadSection('posts');
+            } else {
+                showToast('❌ ' + result.message, 'danger');
+            }
+        }
+
+        // ---- Categories ----
+        async function loadCategories() {
+            const cats = await callApi('GET', '/categories');
+            const container = document.getElementById('categoryList');
+            if (!cats || cats.length === 0) {
+                container.innerHTML = '<p class="text-muted">Chưa có danh mục</p>';
+                return;
+            }
+            container.innerHTML = `<table class="table"><thead><tr><th>Tên</th><th>Mô tả</th></tr></thead><tbody>
+                ${cats.map(c => `<tr><td>${c.categoryName}</td><td>${c.description || ''}</td></tr>`).join('')}
+            </tbody></table>`;
+        }
+
+        // ---- All Comments (Mod/Admin) ----
+        async function loadAllComments() {
+            const comments = await callApi('GET', '/comments?action=all');
+            const container = document.getElementById('commentList');
+            if (!comments || comments.length === 0) {
+                container.innerHTML = '<p class="text-muted">Chưa có bình luận</p>';
+                return;
+            }
+            container.innerHTML = `<table class="table"><thead><tr><th>ID</th><th>Nội dung</th><th>Bài viết</th><th>Người dùng</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>
+                ${comments.map(c => `
+                    <tr>
+                        <td>${c.commentId}</td>
+                        <td>${c.content}</td>
+                        <td>${c.postTitle || 'N/A'}</td>
+                        <td>${c.username}</td>
+                        <td>${getStatusBadge(c.status)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-warning" onclick="toggleCommentAdmin(${c.commentId})">
+                                ${c.status === 'VISIBLE' ? 'Ẩn' : 'Hiện'}
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteCommentAdmin(${c.commentId})">Xóa</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody></table>`;
+        }
+
+        async function toggleCommentAdmin(id) {
+            const result = await callApi('POST', '/comments', { action: 'toggle', id });
+            if (result.success) { showToast('Đã cập nhật', 'success'); loadAllComments(); }
+            else showToast(result.message || 'Lỗi', 'danger');
+        }
+
+        async function deleteCommentAdmin(id) {
+            if (!confirm('Xóa bình luận này?')) return;
+            const result = await callApi('POST', '/comments', { action: 'delete', id });
+            if (result.success) { showToast('Đã xóa', 'success'); loadAllComments(); }
+            else showToast(result.message || 'Lỗi', 'danger');
+        }
+
+        // ---- Pending Posts (Moderator) ----
+        async function loadPendingPosts() {
+            const posts = await callApi('GET', '/posts?action=pending');
+            const container = document.getElementById('pendingPosts');
+            if (!posts || posts.length === 0) {
+                container.innerHTML = '<p class="text-muted">Không có bài chờ duyệt</p>';
+                return;
+            }
+            container.innerHTML = posts.map(p => `
+                <div class="card p-3 mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div><strong>${p.title}</strong> ${getStatusBadge(p.status)}</div>
+                        <div>
+                            <button class="btn btn-sm btn-success" onclick="approvePost(${p.postId})"><i class="bi bi-check"></i> Duyệt</button>
+                            <button class="btn btn-sm btn-danger" onclick="rejectPost(${p.postId})"><i class="bi bi-x"></i> Từ chối</button>
+                        </div>
+                    </div>
+                    <small class="text-muted">${p.authorName}</small>
+                </div>
+            `).join('');
+        }
+
+        async function approvePost(id) {
+            const result = await callApi('POST', '/posts', { action: 'approve', id });
+            if (result.success) { showToast('Đã duyệt', 'success'); loadPendingPosts(); loadMyPosts(); }
+            else showToast(result.message || 'Lỗi', 'danger');
+        }
+
+        async function rejectPost(id) {
+            const reason = prompt('Lý do từ chối:');
+            if (reason === null) return;
+            const result = await callApi('POST', '/posts', { action: 'reject', id });
+            if (result.success) { showToast('Đã từ chối', 'warning'); loadPendingPosts(); loadMyPosts(); }
+            else showToast(result.message || 'Lỗi', 'danger');
+        }
+
+        // ---- Users (Admin) ----
+        async function loadUsers() {
+            const keyword = document.getElementById('searchUserInput')?.value || '';
+            const url = keyword ? `/users?action=search&keyword=${encodeURIComponent(keyword)}` : '/users?action=list';
+            const users = await callApi('GET', url);
+            const container = document.getElementById('userList');
+            if (!users || users.length === 0) {
+                container.innerHTML = '<p class="text-muted">Không tìm thấy user</p>';
+                return;
+            }
+            container.innerHTML = `<table class="table"><thead><tr><th>Username</th><th>Họ tên</th><th>Quyền</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>
+                ${users.map(u => `
+                    <tr>
+                        <td>${u.username}</td>
+                        <td>${u.fullName}</td>
+                        <td><span class="badge ${u.role === 'ADMIN' ? 'bg-danger' : u.role === 'MODERATOR' ? 'bg-warning' : 'bg-secondary'}">${u.role}</span></td>
+                        <td>${getStatusBadge(u.status)}</td>
+                        <td>
+                            ${u.userId !== currentUser?.userId ? `
+                                <button class="btn btn-sm btn-${u.status === 'ACTIVE' ? 'danger' : 'success'}" onclick="toggleUser(${u.userId})">${u.status === 'ACTIVE' ? '🔒 Khóa' : '🔓 Mở'}</button>
+                                <button class="btn btn-sm btn-info" onclick="changeRole(${u.userId})"><i class="bi bi-arrow-repeat"></i></button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody></table>`;
+        }
+
+        async function toggleUser(id) {
+            const user = await callApi('GET', `/users?action=detail&id=${id}`);
+            if (user.error) return;
+            const newStatus = user.status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
+            const result = await callApi('POST', '/users', { action: 'block', id, status: newStatus });
+            if (result.success) { showToast(`Đã ${newStatus === 'ACTIVE' ? 'mở khóa' : 'khóa'}`, 'success'); loadUsers(); }
+            else showToast(result.message || 'Lỗi', 'danger');
+        }
+
+        async function changeRole(id) {
+            const roles = ['USER', 'MODERATOR', 'ADMIN'];
+            const user = await callApi('GET', `/users?action=detail&id=${id}`);
+            if (user.error) return;
+            const newRole = roles[(roles.indexOf(user.role) + 1) % roles.length];
+            const result = await callApi('POST', '/users', { action: 'changeRole', id, role: newRole });
+            if (result.success) { showToast(`Đã đổi thành ${newRole}`, 'info'); loadUsers(); }
+            else showToast(result.message || 'Lỗi', 'danger');
+        }
+
+        // ---- Logout ----
+        async function logout() {
+            await callApi('POST', '/logout');
+            window.location.href = 'login.html';
+        }
+
+        // ---- Init ----
+        document.addEventListener('DOMContentLoaded', function () {
+            loadTheme();
+            checkLogin();
+        });
+    </script>
+</body>
+
+</html>

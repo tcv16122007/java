@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chi tiết bài viết - Blog SE</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="index.html"><i class="bi bi-pencil-square"></i> Blog SE</a>
+            <div class="d-flex align-items-center">
+                <span id="userInfo" class="text-white me-2 d-none"></span>
+                <button class="btn btn-outline-light btn-sm me-2" onclick="toggleTheme()"><i
+                        class="bi bi-moon-stars"></i></button>
+                <a href="#" class="btn btn-outline-light me-2" id="loginBtn"
+                    onclick="window.location.href='login.html'">Đăng nhập</a>
+                <a href="#" class="btn btn-danger d-none" id="logoutBtn" onclick="logout()">Đăng xuất</a>
+                <a href="dashboard.html" class="btn btn-light ms-2 d-none" id="dashboardBtn">Dashboard</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div id="postContent">
+            <div class="text-center text-muted py-5">Đang tải bài viết...</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        let currentUser = null;
+        let currentPostId = null;
+
+        function getPostId() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
+
+        function updateUI(user) {
+            const info = document.getElementById('userInfo');
+            const login = document.getElementById('loginBtn');
+            const logout = document.getElementById('logoutBtn');
+            const dash = document.getElementById('dashboardBtn');
+            if (user) {
+                info.textContent = '👤 ' + user.fullName;
+                info.classList.remove('d-none');
+                login.classList.add('d-none');
+                logout.classList.remove('d-none');
+                dash.classList.remove('d-none');
+            } else {
+                info.classList.add('d-none');
+                login.classList.remove('d-none');
+                logout.classList.add('d-none');
+                dash.classList.add('d-none');
+            }
+        }
+
+        async function checkLogin() {
+            try {
+                const res = await callApi('GET', '/current-user');
+                if (res.success) {
+                    currentUser = res.user;
+                    updateUI(currentUser);
+                    // Show comment form
+                    document.getElementById('commentFormContainer').classList.remove('d-none');
+                    document.getElementById('commentLoginMsg').classList.add('d-none');
+                } else {
+                    updateUI(null);
+                    document.getElementById('commentFormContainer').classList.add('d-none');
+                    document.getElementById('commentLoginMsg').classList.remove('d-none');
+                }
+            } catch (e) { updateUI(null); }
+        }
+
+        async function loadPost() {
+            const id = getPostId();
+            if (!id) {
+                document.getElementById('postContent').innerHTML = '<div class="alert alert-danger">Không tìm thấy bài viết</div>';
+                return;
+            }
+            currentPostId = id;
+            const result = await callApi('GET', `/posts?action=detail&id=${id}`);
+            if (result.error) {
+                document.getElementById('postContent').innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
+                return;
+            }
+
+            document.getElementById('postContent').innerHTML = `
+                <div class="card p-4">
+                    <h2 class="fw-bold">${result.title}</h2>
+                    <div class="text-muted small mb-3">
+                        <i class="bi bi-person"></i> ${result.authorName} |
+                        <i class="bi bi-calendar"></i> ${formatDate(result.createdAt)} |
+                        ❤️ <span id="likeCount">${result.likeCount || 0}</span> |
+                        💬 ${result.commentCount || 0}
+                    </div>
+                    <div class="mb-4">${result.content || 'Nội dung trống'}</div>
+                    <div class="mb-3">
+                        <button class="btn btn-outline-danger like-btn" onclick="toggleLike()">
+                            <i class="bi bi-heart-fill"></i> Thích
+                        </button>
+                    </div>
+                    <hr>
+                    <h6>💬 Bình luận</h6>
+                    <div id="commentList" class="mb-3"></div>
+                    <div id="commentFormContainer">
+                        <form id="commentForm" class="d-flex gap-2">
+                            <input type="text" id="commentInput" class="form-control" placeholder="Viết bình luận..." required>
+                            <button class="btn btn-primary" type="submit">Gửi</button>
+                        </form>
+                    </div>
+                    <div id="commentLoginMsg" class="text-muted small d-none">Đăng nhập để bình luận</div>
+                </div>
+            `;
+
+            loadComments(id);
+
+            // Comment submit
+            document.getElementById('commentForm').addEventListener('submit', async function (e) {
+                e.preventDefault();
+                if (!currentUser) {
+                    showToast('Vui lòng đăng nhập', 'warning');
+                    return;
+                }
+                const content = document.getElementById('commentInput').value.trim();
+                if (!content) return;
+                const result = await callApi('POST', '/comments', {
+                    action: 'add',
+                    content: content,
+                    postId: id
+                });
+                if (result.success) {
+                    document.getElementById('commentInput').value = '';
+                    loadComments(id);
+                    showToast('Đã bình luận', 'success');
+                } else {
+                    showToast(result.message || 'Lỗi', 'danger');
+                }
+            });
+        }
+
+        async function loadComments(postId) {
+            const comments = await callApi('GET', `/comments?postId=${postId}`);
+            const container = document.getElementById('commentList');
+            if (!comments || comments.length === 0) {
+                container.innerHTML = '<p class="text-muted">Chưa có bình luận.</p>';
+                return;
+            }
+            container.innerHTML = comments.map(c => `
+                <div class="border-bottom py-2">
+                    <strong><i class="bi bi-person-circle"></i> ${c.username || 'Anonymous'}</strong>
+                    <small class="text-muted ms-2">${formatDate(c.createdAt)}</small>
+                    <p class="mb-1">${c.content}</p>
+                    ${currentUser && (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN') ? `
+                        <div class="mt-1">
+                            <button class="btn btn-sm btn-outline-warning" onclick="toggleComment(${c.commentId})">
+                                ${c.status === 'VISIBLE' ? 'Ẩn' : 'Hiện'}
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteComment(${c.commentId})">Xóa</button>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function toggleLike() {
+            if (!currentUser) {
+                showToast('Vui lòng đăng nhập', 'warning');
+                return;
+            }
+            const result = await callApi('POST', '/like', { id: currentPostId });
+            if (result.success) {
+                document.getElementById('likeCount').textContent = result.likeCount || 0;
+                showToast('Đã thích bài viết', 'success');
+            } else {
+                const unlikeResult = await callApi('POST', '/unlike', { id: currentPostId });
+                if (unlikeResult.success) {
+                    document.getElementById('likeCount').textContent = unlikeResult.likeCount || 0;
+                    showToast('Đã bỏ thích', 'info');
+                }
+            }
+        }
+
+        async function toggleComment(commentId) {
+            // Lấy trạng thái hiện tại
+            const commentEl = document.querySelector(`button[onclick="toggleComment(${commentId})"]`);
+            const isVisible = commentEl.textContent.trim() === 'Ẩn';
+            const action = isVisible ? 'hide' : 'restore';
+            const result = await callApi('POST', '/comments', { action, id: commentId });
+            if (result.success) {
+                showToast(isVisible ? 'Đã ẩn bình luận' : 'Đã hiện bình luận', 'success');
+                loadComments(currentPostId);
+            } else {
+                showToast(result.message || 'Lỗi', 'danger');
+            }
+        }
+
+        async function deleteComment(commentId) {
+            if (!confirm('Xóa bình luận này?')) return;
+            const result = await callApi('POST', '/comments', { action: 'delete', id: commentId });
+            if (result.success) {
+                showToast('Đã xóa bình luận', 'success');
+                loadComments(currentPostId);
+            } else {
+                showToast(result.message || 'Lỗi', 'danger');
+            }
+        }
+
+        async function logout() {
+            await callApi('POST', '/logout');
+            currentUser = null;
+            updateUI(null);
+            window.location.reload();
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadTheme();
+            checkLogin();
+            loadPost();
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog SE - Trang chủ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="index.html"><i class="bi bi-pencil-square"></i> Blog SE</a>
+            <div class="d-flex align-items-center">
+                <span id="userInfo" class="text-white me-2 d-none"></span>
+                <button class="btn btn-outline-light btn-sm me-2" onclick="toggleTheme()"><i
+                        class="bi bi-moon-stars"></i></button>
+                <a href="#" class="btn btn-outline-light me-2" id="loginBtn"
+                    onclick="window.location.href='login.html'">Đăng nhập</a>
+                <a href="#" class="btn btn-danger d-none" id="logoutBtn" onclick="logout()">Đăng xuất</a>
+                <a href="dashboard.html" class="btn btn-light ms-2 d-none" id="dashboardBtn">Dashboard</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero text-center">
+        <div class="container">
+            <h1 class="display-4 fw-bold">📘 Blog Software Engineering</h1>
+            <p class="lead">Chia sẻ kiến thức về Kỹ thuật phần mềm</p>
+        </div>
+    </section>
+
+    <!-- Bộ lọc -->
+    <div class="container mt-3">
+        <div class="filter-section row g-2">
+            <div class="col-md-3">
+                <select id="filterCategory" class="form-select" onchange="loadPosts()">
+                    <option value="">📂 Tất cả danh mục</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="filterTag" class="form-select" onchange="loadPosts()">
+                    <option value="">🏷️ Tất cả thẻ</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="filterSort" class="form-select" onchange="loadPosts()">
+                    <option value="newest">🕐 Mới nhất</option>
+                    <option value="most_viewed">👁️ Lượt xem</option>
+                    <option value="most_liked">❤️ Lượt thích</option>
+                    <option value="most_commented">💬 Bình luận</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <div class="input-group">
+                    <input type="text" id="searchInput" class="form-control" placeholder="🔍 Tìm kiếm..."
+                        onkeyup="if(event.key==='Enter') loadPosts()">
+                    <button class="btn btn-primary" onclick="loadPosts()"><i class="bi bi-search"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Danh sách bài viết -->
+    <div class="container mt-4">
+        <div id="postList" class="row g-4">
+            <div class="col-12 text-center text-muted">Đang tải bài viết...</div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white text-center py-3 mt-5">
+        <small>&copy; 2025 Blog SE - Software Engineering</small>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        let currentUser = null;
+
+        function updateUI(user) {
+            const info = document.getElementById('userInfo');
+            const login = document.getElementById('loginBtn');
+            const logout = document.getElementById('logoutBtn');
+            const dash = document.getElementById('dashboardBtn');
+            if (user) {
+                info.textContent = '👤 ' + user.fullName;
+                info.classList.remove('d-none');
+                login.classList.add('d-none');
+                logout.classList.remove('d-none');
+                dash.classList.remove('d-none');
+            } else {
+                info.classList.add('d-none');
+                login.classList.remove('d-none');
+                logout.classList.add('d-none');
+                dash.classList.add('d-none');
+            }
+        }
+
+        async function checkLogin() {
+            try {
+                const res = await callApi('GET', '/current-user');
+                if (res.success) {
+                    currentUser = res.user;
+                    updateUI(currentUser);
+                } else {
+                    updateUI(null);
+                }
+            } catch (e) { updateUI(null); }
+        }
+
+        async function loadPosts() {
+            const keyword = document.getElementById('searchInput').value.trim();
+            const categoryId = document.getElementById('filterCategory').value;
+            const tagId = document.getElementById('filterTag').value;
+            const sort = document.getElementById('filterSort').value;
+
+            let url = '/posts?action=filter';
+            if (keyword) url += '&keyword=' + encodeURIComponent(keyword);
+            if (categoryId) url += '&categoryId=' + categoryId;
+            if (tagId) url += '&tagId=' + tagId;
+            if (sort) url += '&sort=' + sort;
+
+            try {
+                const posts = await callApi('GET', url);
+                const container = document.getElementById('postList');
+                if (!posts || posts.length === 0) {
+                    container.innerHTML = '<div class="col-12 text-center text-muted">Chưa có bài viết nào.</div>';
+                    return;
+                }
+                container.innerHTML = posts.map(p => `
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <span class="badge bg-primary badge-custom">${p.categoryName || 'Chung'}</span>
+                                <h5 class="card-title mt-2">${p.title}</h5>
+                                <p class="card-text text-muted small">${p.summary || ''}</p>
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <div class="post-meta">
+                                        <span class="me-2">❤️ ${p.likeCount || 0}</span>
+                                        <span>💬 ${p.commentCount || 0}</span>
+                                        <span class="ms-2"><i class="bi bi-eye"></i> ${p.viewCount || 0}</span>
+                                    </div>
+                                    <a href="post-detail.html?id=${p.postId}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill">Đọc</a>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-transparent text-muted small">
+                                <i class="bi bi-person"></i> ${p.authorName} | ${formatDate(p.createdAt)}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                document.getElementById('postList').innerHTML = '<div class="col-12 text-center text-danger">Lỗi tải dữ liệu</div>';
+            }
+        }
+
+        async function loadFilters() {
+            try {
+                const cats = await callApi('GET', '/categories');
+                const catSel = document.getElementById('filterCategory');
+                if (cats) cats.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.categoryId;
+                    opt.textContent = c.categoryName;
+                    catSel.appendChild(opt);
+                });
+                const tags = await callApi('GET', '/tags');
+                const tagSel = document.getElementById('filterTag');
+                if (tags) tags.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.tagId;
+                    opt.textContent = '#' + t.tagName;
+                    tagSel.appendChild(opt);
+                });
+            } catch (e) { console.warn('Filter load error', e); }
+        }
+
+        async function logout() {
+            await callApi('POST', '/logout');
+            currentUser = null;
+            updateUI(null);
+            window.location.reload();
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadTheme();
+            checkLogin();
+            loadFilters();
+            loadPosts();
+        });
+    </script>
+</body>
+
+</html>

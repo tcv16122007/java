@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - Blog SE</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="container d-flex align-items-center min-vh-100">
+        <div class="login-card">
+            <div class="text-center mb-4">
+                <h3 class="fw-bold">🔐 Đăng nhập</h3>
+                <p class="text-muted">Vui lòng nhập tài khoản của bạn</p>
+            </div>
+
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Tên đăng nhập</label>
+                    <input type="text" id="username" class="form-control form-control-lg" placeholder="Tên đăng nhập"
+                        required>
+                </div>
+                <div class="mb-3 position-relative">
+                    <label class="form-label fw-bold">Mật khẩu</label>
+                    <div class="input-group">
+                        <input type="password" id="password" class="form-control form-control-lg" placeholder="••••••••"
+                            required>
+                        <button class="btn btn-outline-secondary" type="button" id="togglePasswordBtn">
+                            <i class="bi bi-eye" id="toggleIcon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="loginError" class="alert alert-danger d-none"></div>
+
+                <button type="submit" class="btn btn-primary w-100 btn-lg">Đăng nhập</button>
+            </form>
+
+            <div class="d-flex justify-content-between mt-3">
+                <a href="index.html" class="text-decoration-none"><i class="bi bi-arrow-left"></i> Quay lại</a>
+                <a href="forgot-password.html" class="text-decoration-none">Quên mật khẩu?</a>
+            </div>
+
+            <!-- Không hiển thị tài khoản test nữa -->
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        const toggleBtn = document.getElementById('togglePasswordBtn');
+        const passwordInput = document.getElementById('password');
+        const toggleIcon = document.getElementById('toggleIcon');
+
+        toggleBtn.addEventListener('click', function () {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.replace('bi-eye', 'bi-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.replace('bi-eye-slash', 'bi-eye');
+            }
+        });
+
+        document.getElementById('loginForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const errorDiv = document.getElementById('loginError');
+
+            if (username.length < 2 || password.length < 4) {
+                errorDiv.classList.remove('d-none');
+                errorDiv.innerText = 'Tên hoặc mật khẩu quá ngắn!';
+                return;
+            }
+            errorDiv.classList.add('d-none');
+
+            try {
+                const res = await fetch('api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('✅ Đăng nhập thành công!', 'success');
+                    setTimeout(() => window.location.href = 'index.html', 500);
+                } else {
+                    errorDiv.classList.remove('d-none');
+                    errorDiv.innerText = data.message || 'Sai tài khoản hoặc mật khẩu';
+                }
+            } catch (err) {
+                errorDiv.classList.remove('d-none');
+                errorDiv.innerText = 'Lỗi kết nối server!';
+            }
+        });
+    </script>
+</body>
+
+</html>
