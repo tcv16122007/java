@@ -16,13 +16,15 @@
         <div class="container">
             <a class="navbar-brand fw-bold" href="index.html"><i class="bi bi-pencil-square"></i> Blog SE</a>
             <div class="d-flex align-items-center">
+                <img id="avatarImg" src="https://ui-avatars.com/api/?name=User&background=667eea&color=fff&size=32"
+                    class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;display:none;">
                 <span id="userInfo" class="text-white me-2 d-none"></span>
                 <button class="btn btn-outline-light btn-sm me-2" onclick="toggleTheme()"><i
                         class="bi bi-moon-stars"></i></button>
-                <a href="#" class="btn btn-outline-light me-2" id="loginBtn"
+                <a href="#" id="loginBtn" class="btn btn-outline-light me-2"
                     onclick="window.location.href='login.html'">Đăng nhập</a>
-                <a href="#" class="btn btn-danger d-none" id="logoutBtn" onclick="logout()">Đăng xuất</a>
-                <a href="dashboard.html" class="btn btn-light ms-2 d-none" id="dashboardBtn">Dashboard</a>
+                <a href="#" id="logoutBtn" class="btn btn-danger d-none" onclick="logout()">Đăng xuất</a>
+                <a href="dashboard.html" id="dashboardBtn" class="btn btn-light ms-2 d-none">Dashboard</a>
             </div>
         </div>
     </nav>
@@ -44,25 +46,6 @@
             return params.get('id');
         }
 
-        function updateUI(user) {
-            const info = document.getElementById('userInfo');
-            const login = document.getElementById('loginBtn');
-            const logout = document.getElementById('logoutBtn');
-            const dash = document.getElementById('dashboardBtn');
-            if (user) {
-                info.textContent = '👤 ' + user.fullName;
-                info.classList.remove('d-none');
-                login.classList.add('d-none');
-                logout.classList.remove('d-none');
-                dash.classList.remove('d-none');
-            } else {
-                info.classList.add('d-none');
-                login.classList.remove('d-none');
-                logout.classList.add('d-none');
-                dash.classList.add('d-none');
-            }
-        }
-
         async function checkLogin() {
             try {
                 const res = await callApi('GET', '/current-user');
@@ -75,26 +58,33 @@
             } catch (e) { updateUI(null); }
         }
 
-        // Hàm render nội dung với link, ảnh, video
         function renderContent(content) {
             if (!content) return '';
-            // Chuyển đổi link YouTube thành iframe
             let html = content;
-            // YouTube: https://youtu.be/xxxx hoặc https://www.youtube.com/watch?v=xxxx
+
             html = html.replace(
-                /(?:https?:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com\/watch\?v=)([\w-]+)/g,
-                (match, id) => `<div class="media-container"><iframe src="https://www.youtube.com/embed/${id}" allowfullscreen></iframe></div>`
+                /(?:https?:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com\/watch\?v=)([\w-]+)(?:&[^\s]+)?/g,
+                (match, id) => {
+                    const cleanId = id.split('&')[0];
+                    return `<div class="media-container"><iframe src="https://www.youtube.com/embed/${cleanId}" allowfullscreen></iframe></div>`;
+                }
             );
-            // Link ảnh
+
             html = html.replace(
                 /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp))/gi,
                 (match) => `<div class="media-container"><img src="${match}" alt="image" loading="lazy"></div>`
             );
-            // Link thường (chuyển thành thẻ a)
+
             html = html.replace(
-                /(https?:\/\/[^\s]+)/g,
+                /(https?:\/\/[^\s]+\.(?:mp4|webm))/gi,
+                (match) => `<div class="media-container"><video controls><source src="${match}" type="video/mp4"></video></div>`
+            );
+
+            html = html.replace(
+                /(https?:\/\/[^\s<]+)(?![^<]*>)/g,
                 (match) => `<a href="${match}" target="_blank" rel="noopener">${match}</a>`
             );
+
             return html;
         }
 
@@ -111,9 +101,8 @@
                 return;
             }
 
-            // Kiểm tra quyền xem bài viết
-            const canView = result.status === 'APPROVED' ||
-                (currentUser && (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN'));
+            const isMod = currentUser && (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN');
+            const canView = result.status === 'APPROVED' || (isMod && result.status !== 'DELETED');
             if (!canView) {
                 document.getElementById('postContent').innerHTML = `
                     <div class="alert alert-warning">Bài viết này đang chờ duyệt. Chỉ Moderator/Admin mới có thể xem.</div>
@@ -154,7 +143,6 @@
 
             await loadComments(id);
 
-            // Comment submit
             const form = document.getElementById('commentForm');
             if (form) {
                 form.addEventListener('submit', async function (e) {
@@ -197,8 +185,8 @@
             const isMod = currentUser && (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN');
             const likeCount = comment.likeCount || 0;
             const dislikeCount = comment.dislikeCount || 0;
-            const hasLiked = currentUser ? (comment.userLiked || false) : false;
-            const hasDisliked = currentUser ? (comment.userDisliked || false) : false;
+            const hasLiked = currentUser ? (comment.likedByCurrentUser || false) : false;
+            const hasDisliked = currentUser ? (comment.dislikedByCurrentUser || false) : false;
 
             let html = `
                 <div class="comment-box ${indent}" id="comment-${comment.commentId}">
@@ -280,11 +268,8 @@
             if (result.success) {
                 document.getElementById('comment-like-' + commentId).textContent = result.likeCount || 0;
                 document.getElementById('comment-dislike-' + commentId).textContent = result.dislikeCount || 0;
-                // Cập nhật icon
                 const btn = document.querySelector(`#comment-${commentId} .btn-outline-primary i`);
-                if (btn) {
-                    btn.className = 'bi bi-heart-fill text-danger';
-                }
+                if (btn) btn.className = 'bi bi-heart-fill text-danger';
                 showToast('Đã thích', 'success');
             } else {
                 showToast(result.message || 'Lỗi', 'danger');
@@ -298,9 +283,7 @@
                 document.getElementById('comment-like-' + commentId).textContent = result.likeCount || 0;
                 document.getElementById('comment-dislike-' + commentId).textContent = result.dislikeCount || 0;
                 const btn = document.querySelector(`#comment-${commentId} .btn-outline-secondary i`);
-                if (btn) {
-                    btn.className = 'bi bi-hand-thumbs-down-fill text-danger';
-                }
+                if (btn) btn.className = 'bi bi-hand-thumbs-down-fill text-danger';
                 showToast('Đã không thích', 'success');
             } else {
                 showToast(result.message || 'Lỗi', 'danger');
@@ -329,7 +312,6 @@
             const btn = document.querySelector(`button[onclick="toggleCommentAdmin(${commentId})"]`);
             if (!btn) return;
             const isVisible = btn.textContent.trim() === 'Ẩn';
-            const action = isVisible ? 'toggle' : 'toggle';
             const result = await callApi('POST', '/comments', { action: 'toggle', id: commentId });
             if (result.success) {
                 showToast(isVisible ? 'Đã ẩn bình luận' : 'Đã hiện bình luận', 'success');
@@ -359,6 +341,7 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             loadTheme();
+            applyGlobalSettings();
             checkLogin().then(() => loadPost());
         });
     </script>

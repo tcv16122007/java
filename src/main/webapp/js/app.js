@@ -61,10 +61,9 @@ async function applyGlobalSettings() {
             const root = document.documentElement;
             root.style.setProperty('--primary-color', res.primaryColor || '#0d6efd');
             root.style.setProperty('--bg-color', res.backgroundColor || '#ffffff');
+            root.style.setProperty('--text-color', res.textColor || '#1a1a2e');
             document.body.style.fontFamily = res.fontFamily || 'system-ui';
-            // Cập nhật màu nền body
             document.body.style.backgroundColor = res.backgroundColor || '#ffffff';
-            // Custom CSS
             const styleEl = document.getElementById('customGlobalStyle') || (() => {
                 const el = document.createElement('style');
                 el.id = 'customGlobalStyle';
@@ -74,6 +73,56 @@ async function applyGlobalSettings() {
             styleEl.textContent = res.customCss || '';
         }
     } catch (e) { console.warn('Apply settings error', e); }
+}
+
+// ====== GLOBAL UI UPDATE (cập nhật cả avatar trên navbar và profile) ======
+function updateUI(user) {
+    console.log('updateUI called with user:', user);
+    const userInfo = document.getElementById('userInfo');
+    const avatarImg = document.getElementById('avatarImg');
+    const avatarImgBig = document.getElementById('avatarImgBig');
+    const loginBtn = document.getElementById('loginBtn');
+    const registerBtn = document.getElementById('registerBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const dashboardBtn = document.getElementById('dashboardBtn');
+
+    if (user) {
+        if (userInfo) {
+            userInfo.textContent = '👤 ' + user.fullName;
+            userInfo.classList.remove('d-none');
+        }
+        if (loginBtn) loginBtn.classList.add('d-none');
+        if (registerBtn) registerBtn.classList.add('d-none');
+        if (logoutBtn) logoutBtn.classList.remove('d-none');
+        if (dashboardBtn) dashboardBtn.classList.remove('d-none');
+
+        // Cập nhật avatar trên navbar và profile
+        if (user.avatar) {
+            const url = '/java' + user.avatar + '?t=' + Date.now();
+            if (avatarImg) {
+                avatarImg.src = url;
+                avatarImg.style.display = 'inline';
+            }
+            if (avatarImgBig) {
+                avatarImgBig.src = url;
+                // Không ẩn avatarImgBig vì nó luôn hiển thị (fallback ui-avatars)
+            }
+        } else {
+            if (avatarImg) avatarImg.style.display = 'none';
+            // avatarImgBig giữ nguyên (ui-avatars mặc định)
+        }
+    } else {
+        if (userInfo) {
+            userInfo.textContent = '';
+            userInfo.classList.add('d-none');
+        }
+        if (loginBtn) loginBtn.classList.remove('d-none');
+        if (registerBtn) registerBtn.classList.remove('d-none');
+        if (logoutBtn) logoutBtn.classList.add('d-none');
+        if (dashboardBtn) dashboardBtn.classList.add('d-none');
+        if (avatarImg) avatarImg.style.display = 'none';
+        // avatarImgBig giữ nguyên (ui-avatars mặc định)
+    }
 }
 
 // ====== FORMAT DATE ======

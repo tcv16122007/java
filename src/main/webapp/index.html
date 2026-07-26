@@ -16,15 +16,17 @@
         <div class="container">
             <a class="navbar-brand fw-bold" href="index.html"><i class="bi bi-pencil-square"></i> Blog SE</a>
             <div class="d-flex align-items-center">
+                <img id="avatarImg" src="https://ui-avatars.com/api/?name=User&background=667eea&color=fff&size=32"
+                    class="rounded-circle me-2" style="width:32px;height:32px;object-fit:cover;display:none;">
                 <span id="userInfo" class="text-white me-2 d-none"></span>
                 <button class="btn btn-outline-light btn-sm me-2" onclick="toggleTheme()"><i
                         class="bi bi-moon-stars"></i></button>
-                <a href="#" class="btn btn-outline-light me-2" id="loginBtn"
+                <a href="#" id="loginBtn" class="btn btn-outline-light me-2"
                     onclick="window.location.href='login.html'">Đăng nhập</a>
-                <a href="#" class="btn btn-outline-light me-2" id="registerBtn"
+                <a href="#" id="registerBtn" class="btn btn-outline-light me-2"
                     onclick="window.location.href='register.html'">Đăng ký</a>
-                <a href="#" class="btn btn-danger d-none" id="logoutBtn" onclick="logout()">Đăng xuất</a>
-                <a href="dashboard.html" class="btn btn-light ms-2 d-none" id="dashboardBtn">Dashboard</a>
+                <a href="#" id="logoutBtn" class="btn btn-danger d-none" onclick="logout()">Đăng xuất</a>
+                <a href="dashboard.html" id="dashboardBtn" class="btn btn-light ms-2 d-none">Dashboard</a>
             </div>
         </div>
     </nav>
@@ -85,38 +87,21 @@
     <script>
         let currentUser = null;
 
-        function updateUI(user) {
-            const info = document.getElementById('userInfo');
-            const login = document.getElementById('loginBtn');
-            const register = document.getElementById('registerBtn');
-            const logout = document.getElementById('logoutBtn');
-            const dash = document.getElementById('dashboardBtn');
-            if (user) {
-                info.textContent = '👤 ' + user.fullName;
-                info.classList.remove('d-none');
-                login.classList.add('d-none');
-                if (register) register.classList.add('d-none');
-                logout.classList.remove('d-none');
-                dash.classList.remove('d-none');
-            } else {
-                info.classList.add('d-none');
-                login.classList.remove('d-none');
-                if (register) register.classList.remove('d-none');
-                logout.classList.add('d-none');
-                dash.classList.add('d-none');
-            }
-        }
-
         async function checkLogin() {
             try {
                 const res = await callApi('GET', '/current-user');
                 if (res.success) {
                     currentUser = res.user;
                     updateUI(currentUser);
+                    console.log('Đăng nhập thành công, user:', currentUser);
                 } else {
                     updateUI(null);
+                    console.log('Chưa đăng nhập');
                 }
-            } catch (e) { updateUI(null); }
+            } catch (e) {
+                console.error('checkLogin error:', e);
+                updateUI(null);
+            }
         }
 
         async function loadPosts() {
@@ -195,6 +180,7 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             loadTheme();
+            applyGlobalSettings();
             checkLogin();
             loadFilters();
             loadPosts();

@@ -1,5 +1,6 @@
 package com.java.servlet;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -25,13 +26,16 @@ import com.java.model.User;
 import com.java.model.UserSettings;
 
 import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Part;
 
 @WebServlet("/api/*")
+@MultipartConfig(maxFileSize = 5 * 1024 * 1024) // 5MB
 public class ApiServlet extends HttpServlet {
 
     private final Gson gson = new Gson();
@@ -208,8 +212,8 @@ public class ApiServlet extends HttpServlet {
                     resp.getWriter().write(gson.toJson(err));
                 }
             }
-        } catch (NumberFormatException e) {
-            resp.getWriter().write("{\"error\":\"Invalid number format: " + e.getMessage() + "\"}");
+        } catch (NumberFormatException | NullPointerException e) {
+            resp.getWriter().write("{\"error\":\"" + e.getMessage() + "\"}");
         } catch (Exception e) {
             resp.getWriter().write("{\"error\":\"" + e.getMessage() + "\"}");
         }
@@ -387,7 +391,6 @@ public class ApiServlet extends HttpServlet {
                         resp.getWriter().write(gson.toJson(err));
                         return;
                     }
-                    // Chỉ USER mới được đăng bài
                     if (!"USER".equals(currentUser.getRole())) {
                         Map<String, Object> err = new HashMap<>();
                         err.put("error", "Chỉ thành viên mới được đăng bài");
@@ -678,6 +681,54 @@ public class ApiServlet extends HttpServlet {
                     resp.getWriter().write(gson.toJson(result));
                 }
 
+                // ===== UPLOAD AVATAR =====
+                case "/upload-avatar" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    Part filePart = req.getPart("avatar");
+                    if (filePart == null || filePart.getSize() == 0) {
+                        Map<String, Object> result = new HashMap<>();
+                        result.put("success", false);
+                        result.put("message", "Không có file được tải lên");
+                        resp.getWriter().write(gson.toJson(result));
+                        return;
+                    }
+
+                    String fileName = "avatar_" + currentUser.getUserId() + "_" + System.currentTimeMillis() + ".jpg";
+                    String uploadPath = getServletContext().getRealPath("/uploads/avatars/");
+                    if (uploadPath == null) {
+                        uploadPath = getServletContext().getRealPath("/") + "uploads" + File.separator + "avatars" + File.separator;
+                    }
+                    if (!uploadPath.endsWith(File.separator)) {
+                        uploadPath += File.separator;
+                    }
+                    File uploadDir = new File(uploadPath);
+                    if (!uploadDir.exists()) {
+                        uploadDir.mkdirs();
+                    }
+                    String filePath = uploadPath + fileName;
+                    filePart.write(filePath);
+
+                    String avatarUrl = "/uploads/avatars/" + fileName;
+                    boolean ok = userDAO.updateAvatar(currentUser.getUserId(), avatarUrl);
+                    
+                    // Cập nhật session
+                    if (ok) {
+                        currentUser.setAvatar(avatarUrl);
+                        session.setAttribute("user", currentUser);
+                    }
+                    
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    result.put("avatarUrl", avatarUrl);
+                    result.put("message", ok ? "Đã cập nhật ảnh đại diện" : "Cập nhật thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
                 // ===== SETTINGS =====
                 case "/settings" -> {
                     if (currentUser == null) {
@@ -793,8 +844,8 @@ public class ApiServlet extends HttpServlet {
                     resp.getWriter().write(gson.toJson(err));
                 }
             }
-        } catch (NumberFormatException e) {
-            resp.getWriter().write("{\"error\":\"Invalid number format: " + e.getMessage() + "\"}");
+        } catch (NumberFormatException | NullPointerException e) {
+            resp.getWriter().write("{\"error\":\"" + e.getMessage() + "\"}");
         } catch (Exception e) {
             resp.getWriter().write("{\"error\":\"" + e.getMessage() + "\"}");
         }
