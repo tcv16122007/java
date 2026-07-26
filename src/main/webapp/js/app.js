@@ -1,11 +1,17 @@
 // ====== API HELPER ======
 async function callApi(method, endpoint, data = null) {
-    const opts = { method, headers: {} };
+    const opts = {
+        method,
+        headers: {},
+        credentials: 'include'
+    };
     if (data) {
         opts.headers['Content-Type'] = 'application/x-www-form-urlencoded';
         opts.body = new URLSearchParams(data);
     }
-    const res = await fetch('api' + endpoint, opts);
+    const contextPath = window.location.pathname.split('/')[1] || '';
+    const base = contextPath ? '/' + contextPath + '/api' : '/api';
+    const res = await fetch(base + endpoint, opts);
     return res.json();
 }
 
@@ -45,6 +51,29 @@ function toggleTheme() {
 function loadTheme() {
     const theme = localStorage.getItem('theme');
     if (theme === 'dark') document.body.classList.add('dark-theme');
+}
+
+// ====== APPLY GLOBAL SETTINGS ======
+async function applyGlobalSettings() {
+    try {
+        const res = await callApi('GET', '/settings');
+        if (res && !res.error) {
+            const root = document.documentElement;
+            root.style.setProperty('--primary-color', res.primaryColor || '#0d6efd');
+            root.style.setProperty('--bg-color', res.backgroundColor || '#ffffff');
+            document.body.style.fontFamily = res.fontFamily || 'system-ui';
+            // Cập nhật màu nền body
+            document.body.style.backgroundColor = res.backgroundColor || '#ffffff';
+            // Custom CSS
+            const styleEl = document.getElementById('customGlobalStyle') || (() => {
+                const el = document.createElement('style');
+                el.id = 'customGlobalStyle';
+                document.head.appendChild(el);
+                return el;
+            })();
+            styleEl.textContent = res.customCss || '';
+        }
+    } catch (e) { console.warn('Apply settings error', e); }
 }
 
 // ====== FORMAT DATE ======

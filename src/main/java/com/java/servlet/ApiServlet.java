@@ -109,7 +109,9 @@ public class ApiServlet extends HttpServlet {
                             long id = Long.parseLong(req.getParameter("id"));
                             Post p = postDAO.findById(id);
                             if (p != null) {
-                                postDAO.incrementViewCount(id);
+                                if ("APPROVED".equals(p.getStatus())) {
+                                    postDAO.incrementViewCount(id);
+                                }
                                 resp.getWriter().write(gson.toJson(p));
                             } else {
                                 Map<String, Object> err = new HashMap<>();
@@ -143,7 +145,6 @@ public class ApiServlet extends HttpServlet {
                 case "/comments" -> {
                     String action = req.getParameter("action");
                     if ("all".equals(action)) {
-                        // Chỉ Mod/Admin mới xem tất cả
                         if (currentUser == null || (!"MODERATOR".equals(currentUser.getRole()) && !"ADMIN".equals(currentUser.getRole()))) {
                             Map<String, Object> err = new HashMap<>();
                             err.put("error", "Không có quyền");
@@ -154,7 +155,8 @@ public class ApiServlet extends HttpServlet {
                         resp.getWriter().write(gson.toJson(comments));
                     } else {
                         long postId = Long.parseLong(req.getParameter("postId"));
-                        List<Comment> comments = commentDAO.findByPost(postId);
+                        Long userId = currentUser != null ? currentUser.getUserId() : null;
+                        List<Comment> comments = commentDAO.findByPost(postId, userId);
                         resp.getWriter().write(gson.toJson(comments));
                     }
                 }
@@ -169,7 +171,9 @@ public class ApiServlet extends HttpServlet {
                             s = new UserSettings();
                             s.setUserId(currentUser.getUserId());
                             s.setTheme("light");
-                            s.setPrimaryColor("#0d6efd");
+                            s.setPrimaryColor("#667eea");
+                            s.setBackgroundColor("#f4f6f9");
+                            s.setTextColor("#1a1a2e");
                         }
                         resp.getWriter().write(gson.toJson(s));
                     }
@@ -229,6 +233,47 @@ public class ApiServlet extends HttpServlet {
             }
 
             switch (path) {
+                // ===== REGISTER =====
+                case "/register" -> {
+                    String fullName = req.getParameter("fullName");
+                    String username = req.getParameter("username");
+                    String email = req.getParameter("email");
+                    String password = req.getParameter("password");
+                    Map<String, Object> result = new HashMap<>();
+
+                    if (fullName == null || username == null || email == null || password == null) {
+                        result.put("success", false);
+                        result.put("message", "Thiếu thông tin đăng ký");
+                        resp.getWriter().write(gson.toJson(result));
+                        return;
+                    }
+
+                    if (userDAO.findByUsername(username.trim()) != null) {
+                        result.put("success", false);
+                        result.put("message", "Tên đăng nhập đã tồn tại");
+                        resp.getWriter().write(gson.toJson(result));
+                        return;
+                    }
+                    if (userDAO.findByEmail(email.trim()) != null) {
+                        result.put("success", false);
+                        result.put("message", "Email đã được sử dụng");
+                        resp.getWriter().write(gson.toJson(result));
+                        return;
+                    }
+
+                    User newUser = new User();
+                    newUser.setFullName(fullName.trim());
+                    newUser.setUsername(username.trim());
+                    newUser.setEmail(email.trim());
+                    newUser.setPassword(password);
+                    newUser.setRole("USER");
+                    newUser.setStatus("ACTIVE");
+                    boolean ok = userDAO.insert(newUser);
+                    result.put("success", ok);
+                    result.put("message", ok ? "Đăng ký thành công" : "Đăng ký thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
                 // ===== LOGIN =====
                 case "/login" -> {
                     String username = req.getParameter("username");
@@ -245,7 +290,6 @@ public class ApiServlet extends HttpServlet {
                             result.put("success", true);
                             result.put("user", user);
                         } else {
-                            // Kiểm tra user tồn tại nhưng bị khóa
                             User blocked = userDAO.findByUsername(username);
                             if (blocked != null && "BLOCKED".equals(blocked.getStatus())) {
                                 result.put("success", false);
@@ -270,24 +314,26 @@ public class ApiServlet extends HttpServlet {
 
                 // ===== FORGOT PASSWORD =====
                 case "/forgot-password" -> {
+                    String username = req.getParameter("username");
                     String email = req.getParameter("email");
                     Map<String, Object> result = new HashMap<>();
-                    if (email == null || email.trim().isEmpty()) {
+
+                    if (username == null || email == null || username.trim().isEmpty() || email.trim().isEmpty()) {
                         result.put("success", false);
-                        result.put("message", "Email không được để trống");
+                        result.put("message", "Vui lòng nhập đầy đủ thông tin");
                         resp.getWriter().write(gson.toJson(result));
                         return;
                     }
-                    User user = userDAO.findByEmail(email.trim());
-                    if (user == null) {
+
+                    User user = userDAO.findByUsername(username.trim());
+                    if (user == null || !user.getEmail().equalsIgnoreCase(email.trim())) {
                         result.put("success", false);
-                        result.put("message", "Email không tồn tại trong hệ thống");
+                        result.put("message", "Tên đăng nhập hoặc email không đúng");
                         resp.getWriter().write(gson.toJson(result));
                         return;
                     }
-                    // Xóa token cũ nếu có
+
                     resetTokenDAO.deleteByUserId(user.getUserId());
-                    // Tạo token mới
                     String token = UUID.randomUUID().toString();
                     PasswordResetToken resetToken = new PasswordResetToken();
                     resetToken.setUserId(user.getUserId());
@@ -296,10 +342,10 @@ public class ApiServlet extends HttpServlet {
                     cal.add(Calendar.HOUR, 1);
                     resetToken.setExpiryDate(cal.getTime());
                     resetTokenDAO.save(resetToken);
-                    // Trả về link reset (trong thực tế sẽ gửi email)
-                    String resetLink = "http://localhost:8080/java/reset-password.html?token=" + token;
+
                     result.put("success", true);
-                    result.put("message", "Link đặt lại mật khẩu đã được gửi. (Demo: " + resetLink + ")");
+                    result.put("token", token);
+                    result.put("message", "Xác thực thành công. Vui lòng đặt lại mật khẩu.");
                     resp.getWriter().write(gson.toJson(result));
                 }
 
@@ -338,6 +384,13 @@ public class ApiServlet extends HttpServlet {
                     if (currentUser == null) {
                         Map<String, Object> err = new HashMap<>();
                         err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    // Chỉ USER mới được đăng bài
+                    if (!"USER".equals(currentUser.getRole())) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chỉ thành viên mới được đăng bài");
                         resp.getWriter().write(gson.toJson(err));
                         return;
                     }
@@ -456,6 +509,7 @@ public class ApiServlet extends HttpServlet {
                         case "add" -> {
                             String content = req.getParameter("content");
                             long postId = Long.parseLong(req.getParameter("postId"));
+                            String parentIdStr = req.getParameter("parentId");
                             Map<String, Object> result = new HashMap<>();
                             if (content == null || content.trim().isEmpty()) {
                                 result.put("error", "Nội dung bình luận không được để trống");
@@ -464,7 +518,13 @@ public class ApiServlet extends HttpServlet {
                                 c.setContent(content.trim());
                                 c.setUserId(currentUser.getUserId());
                                 c.setPostId(postId);
-                                boolean ok = commentDAO.insert(c);
+                                boolean ok;
+                                if (parentIdStr != null && !parentIdStr.isEmpty()) {
+                                    c.setParentId(Long.parseLong(parentIdStr));
+                                    ok = commentDAO.insertReply(c);
+                                } else {
+                                    ok = commentDAO.insert(c);
+                                }
                                 result.put("success", ok);
                                 result.put("message", ok ? "Đã bình luận" : "Bình luận thất bại");
                             }
@@ -512,7 +572,73 @@ public class ApiServlet extends HttpServlet {
                     }
                 }
 
-                // ===== LIKE / UNLIKE =====
+                // ===== COMMENT LIKE =====
+                case "/comment/like" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long commentId = Long.parseLong(req.getParameter("id"));
+                    boolean ok = commentDAO.likeComment(currentUser.getUserId(), commentId);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    if (ok) {
+                        result.put("likeCount", commentDAO.countLikes(commentId));
+                        result.put("dislikeCount", commentDAO.countDislikes(commentId));
+                        result.put("message", "Đã thích bình luận");
+                    } else {
+                        result.put("message", "Thích thất bại");
+                    }
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
+                // ===== COMMENT UNLIKE =====
+                case "/comment/unlike" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long commentId = Long.parseLong(req.getParameter("id"));
+                    boolean ok = commentDAO.unlikeComment(currentUser.getUserId(), commentId);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    if (ok) {
+                        result.put("likeCount", commentDAO.countLikes(commentId));
+                        result.put("dislikeCount", commentDAO.countDislikes(commentId));
+                        result.put("message", "Đã bỏ thích bình luận");
+                    } else {
+                        result.put("message", "Bỏ thích thất bại");
+                    }
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
+                // ===== COMMENT DISLIKE =====
+                case "/comment/dislike" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long commentId = Long.parseLong(req.getParameter("id"));
+                    boolean ok = commentDAO.dislikeComment(currentUser.getUserId(), commentId);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    if (ok) {
+                        result.put("likeCount", commentDAO.countLikes(commentId));
+                        result.put("dislikeCount", commentDAO.countDislikes(commentId));
+                        result.put("message", "Đã không thích bình luận");
+                    } else {
+                        result.put("message", "Không thích thất bại");
+                    }
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
+                // ===== LIKE POST =====
                 case "/like" -> {
                     if (currentUser == null) {
                         Map<String, Object> err = new HashMap<>();
@@ -566,6 +692,7 @@ public class ApiServlet extends HttpServlet {
                     s.setPrimaryColor(req.getParameter("primaryColor"));
                     s.setSecondaryColor(req.getParameter("secondaryColor"));
                     s.setBackgroundColor(req.getParameter("backgroundColor"));
+                    s.setTextColor(req.getParameter("textColor"));
                     s.setFontFamily(req.getParameter("fontFamily"));
                     s.setCoverImage(req.getParameter("coverImage"));
                     s.setCustomCss(req.getParameter("customCss"));
@@ -610,7 +737,6 @@ public class ApiServlet extends HttpServlet {
                             resp.getWriter().write(gson.toJson(result));
                         }
                         case "updateProfile" -> {
-                            // User tự cập nhật thông tin (có thể dùng cho cả user)
                             long id = currentUser.getUserId();
                             String fullName = req.getParameter("fullName");
                             String email = req.getParameter("email");
@@ -624,7 +750,6 @@ public class ApiServlet extends HttpServlet {
                                 resp.getWriter().write(gson.toJson(result));
                                 return;
                             }
-                            // Kiểm tra mật khẩu cũ nếu đổi mật khẩu
                             if (newPassword != null && !newPassword.isEmpty()) {
                                 if (oldPassword == null || oldPassword.isEmpty()) {
                                     result.put("success", false);
@@ -638,7 +763,6 @@ public class ApiServlet extends HttpServlet {
                                     resp.getWriter().write(gson.toJson(result));
                                     return;
                                 }
-                                // Kiểm tra mật khẩu cũ đúng không
                                 User u = userDAO.findById(id);
                                 if (u == null || !u.getPassword().equals(oldPassword)) {
                                     result.put("success", false);
@@ -648,12 +772,10 @@ public class ApiServlet extends HttpServlet {
                                 }
                                 userDAO.updatePassword(id, newPassword);
                             }
-                            // Cập nhật thông tin
                             User u = new User();
                             u.setUserId(id);
                             u.setFullName(fullName);
                             u.setEmail(email);
-                            // Giữ nguyên các trường khác
                             boolean ok = userDAO.updateProfile(u);
                             result.put("success", ok);
                             result.put("message", ok ? "Đã cập nhật thông tin" : "Cập nhật thất bại");

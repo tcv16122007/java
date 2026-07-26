@@ -22,6 +22,7 @@ public class UserSettingsDAO {
                 s.setPrimaryColor(rs.getString("primary_color"));
                 s.setSecondaryColor(rs.getString("secondary_color"));
                 s.setBackgroundColor(rs.getString("background_color"));
+                s.setTextColor(rs.getString("text_color"));
                 s.setFontFamily(rs.getString("font_family"));
                 s.setCoverImage(rs.getString("cover_image"));
                 s.setCustomCss(rs.getString("custom_css"));
@@ -37,9 +38,9 @@ public class UserSettingsDAO {
         UserSettings existing = findByUserId(s.getUserId());
         String sql;
         if (existing != null) {
-            sql = "UPDATE User_Settings SET theme=?, primary_color=?, secondary_color=?, background_color=?, font_family=?, cover_image=?, custom_css=?, updated_at=GETDATE() WHERE user_id=?";
+            sql = "UPDATE User_Settings SET theme=?, primary_color=?, secondary_color=?, background_color=?, text_color=?, font_family=?, cover_image=?, custom_css=?, updated_at=GETDATE() WHERE user_id=?";
         } else {
-            sql = "INSERT INTO User_Settings (user_id, theme, primary_color, secondary_color, background_color, font_family, cover_image, custom_css) VALUES (?,?,?,?,?,?,?,?)";
+            sql = "INSERT INTO User_Settings (user_id, theme, primary_color, secondary_color, background_color, text_color, font_family, cover_image, custom_css) VALUES (?,?,?,?,?,?,?,?,?)";
         }
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -49,6 +50,7 @@ public class UserSettingsDAO {
                 ps.setString(idx++, s.getPrimaryColor());
                 ps.setString(idx++, s.getSecondaryColor());
                 ps.setString(idx++, s.getBackgroundColor());
+                ps.setString(idx++, s.getTextColor());
                 ps.setString(idx++, s.getFontFamily());
                 ps.setString(idx++, s.getCoverImage());
                 ps.setString(idx++, s.getCustomCss());
@@ -59,6 +61,7 @@ public class UserSettingsDAO {
                 ps.setString(idx++, s.getPrimaryColor());
                 ps.setString(idx++, s.getSecondaryColor());
                 ps.setString(idx++, s.getBackgroundColor());
+                ps.setString(idx++, s.getTextColor());
                 ps.setString(idx++, s.getFontFamily());
                 ps.setString(idx++, s.getCoverImage());
                 ps.setString(idx++, s.getCustomCss());

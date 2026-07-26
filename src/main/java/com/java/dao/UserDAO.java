@@ -12,6 +12,23 @@ import com.java.model.User;
 
 public class UserDAO {
 
+    // ==================== INSERT ====================
+    public boolean insert(User user) {
+        String sql = "INSERT INTO [User] (full_name, username, email, password, role, status) VALUES (?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, user.getFullName());
+            ps.setString(2, user.getUsername());
+            ps.setString(3, user.getEmail());
+            ps.setString(4, user.getPassword());
+            ps.setString(5, user.getRole() != null ? user.getRole() : "USER");
+            ps.setString(6, user.getStatus() != null ? user.getStatus() : "ACTIVE");
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Insert user error", e);
+        }
+    }
+
     // ==================== LOGIN ====================
     public User login(String username, String password) {
         String sql = "SELECT * FROM [User] WHERE username = ? AND password = ? AND status = 'ACTIVE'";
@@ -151,6 +168,19 @@ public class UserDAO {
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             throw new RuntimeException("Update profile error", e);
+        }
+    }
+
+    // ==================== UPDATE AVATAR ====================
+    public boolean updateAvatar(long userId, String avatarUrl) {
+        String sql = "UPDATE [User] SET avatar = ? WHERE user_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, avatarUrl);
+            ps.setLong(2, userId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Update avatar error", e);
         }
     }
 

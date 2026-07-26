@@ -69,15 +69,33 @@
                 if (res.success) {
                     currentUser = res.user;
                     updateUI(currentUser);
-                    // Show comment form
-                    document.getElementById('commentFormContainer').classList.remove('d-none');
-                    document.getElementById('commentLoginMsg').classList.add('d-none');
                 } else {
                     updateUI(null);
-                    document.getElementById('commentFormContainer').classList.add('d-none');
-                    document.getElementById('commentLoginMsg').classList.remove('d-none');
                 }
             } catch (e) { updateUI(null); }
+        }
+
+        // Hàm render nội dung với link, ảnh, video
+        function renderContent(content) {
+            if (!content) return '';
+            // Chuyển đổi link YouTube thành iframe
+            let html = content;
+            // YouTube: https://youtu.be/xxxx hoặc https://www.youtube.com/watch?v=xxxx
+            html = html.replace(
+                /(?:https?:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com\/watch\?v=)([\w-]+)/g,
+                (match, id) => `<div class="media-container"><iframe src="https://www.youtube.com/embed/${id}" allowfullscreen></iframe></div>`
+            );
+            // Link ảnh
+            html = html.replace(
+                /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp))/gi,
+                (match) => `<div class="media-container"><img src="${match}" alt="image" loading="lazy"></div>`
+            );
+            // Link thường (chuyển thành thẻ a)
+            html = html.replace(
+                /(https?:\/\/[^\s]+)/g,
+                (match) => `<a href="${match}" target="_blank" rel="noopener">${match}</a>`
+            );
+            return html;
         }
 
         async function loadPost() {
@@ -93,82 +111,200 @@
                 return;
             }
 
+            // Kiểm tra quyền xem bài viết
+            const canView = result.status === 'APPROVED' ||
+                (currentUser && (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN'));
+            if (!canView) {
+                document.getElementById('postContent').innerHTML = `
+                    <div class="alert alert-warning">Bài viết này đang chờ duyệt. Chỉ Moderator/Admin mới có thể xem.</div>
+                `;
+                return;
+            }
+
+            const renderedContent = renderContent(result.content);
+
             document.getElementById('postContent').innerHTML = `
                 <div class="card p-4">
                     <h2 class="fw-bold">${result.title}</h2>
                     <div class="text-muted small mb-3">
                         <i class="bi bi-person"></i> ${result.authorName} |
                         <i class="bi bi-calendar"></i> ${formatDate(result.createdAt)} |
-                        ❤️ <span id="likeCount">${result.likeCount || 0}</span> |
-                        💬 ${result.commentCount || 0}
+                        <span class="badge ${result.status === 'APPROVED' ? 'bg-success' : 'bg-warning'}">${result.status}</span>
                     </div>
-                    <div class="mb-4">${result.content || 'Nội dung trống'}</div>
+                    <div class="mb-4">${renderedContent}</div>
                     <div class="mb-3">
                         <button class="btn btn-outline-danger like-btn" onclick="toggleLike()">
-                            <i class="bi bi-heart-fill"></i> Thích
+                            <i class="bi bi-heart-fill"></i> Thích <span id="likeCount">${result.likeCount || 0}</span>
                         </button>
                     </div>
                     <hr>
-                    <h6>💬 Bình luận</h6>
+                    <h6>💬 Bình luận <span class="comment-count">(${result.commentCount || 0})</span></h6>
                     <div id="commentList" class="mb-3"></div>
-                    <div id="commentFormContainer">
+                    <div id="commentFormContainer" class="${currentUser ? '' : 'd-none'}">
                         <form id="commentForm" class="d-flex gap-2">
                             <input type="text" id="commentInput" class="form-control" placeholder="Viết bình luận..." required>
                             <button class="btn btn-primary" type="submit">Gửi</button>
                         </form>
                     </div>
-                    <div id="commentLoginMsg" class="text-muted small d-none">Đăng nhập để bình luận</div>
+                    <div id="commentLoginMsg" class="text-muted small ${currentUser ? 'd-none' : ''}">
+                        <a href="login.html">Đăng nhập</a> để bình luận
+                    </div>
                 </div>
             `;
 
-            loadComments(id);
+            await loadComments(id);
 
             // Comment submit
-            document.getElementById('commentForm').addEventListener('submit', async function (e) {
-                e.preventDefault();
-                if (!currentUser) {
-                    showToast('Vui lòng đăng nhập', 'warning');
-                    return;
-                }
-                const content = document.getElementById('commentInput').value.trim();
-                if (!content) return;
-                const result = await callApi('POST', '/comments', {
-                    action: 'add',
-                    content: content,
-                    postId: id
+            const form = document.getElementById('commentForm');
+            if (form) {
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    if (!currentUser) {
+                        showToast('Vui lòng đăng nhập', 'warning');
+                        return;
+                    }
+                    const content = document.getElementById('commentInput').value.trim();
+                    if (!content) return;
+                    const result = await callApi('POST', '/comments', {
+                        action: 'add',
+                        content: content,
+                        postId: id
+                    });
+                    if (result.success) {
+                        document.getElementById('commentInput').value = '';
+                        await loadComments(id);
+                        showToast('Đã bình luận', 'success');
+                    } else {
+                        showToast(result.message || 'Lỗi', 'danger');
+                    }
                 });
-                if (result.success) {
-                    document.getElementById('commentInput').value = '';
-                    loadComments(id);
-                    showToast('Đã bình luận', 'success');
-                } else {
-                    showToast(result.message || 'Lỗi', 'danger');
-                }
-            });
+            }
         }
 
         async function loadComments(postId) {
             const comments = await callApi('GET', `/comments?postId=${postId}`);
             const container = document.getElementById('commentList');
+            if (!container) return;
             if (!comments || comments.length === 0) {
                 container.innerHTML = '<p class="text-muted">Chưa có bình luận.</p>';
                 return;
             }
-            container.innerHTML = comments.map(c => `
-                <div class="border-bottom py-2">
-                    <strong><i class="bi bi-person-circle"></i> ${c.username || 'Anonymous'}</strong>
-                    <small class="text-muted ms-2">${formatDate(c.createdAt)}</small>
-                    <p class="mb-1">${c.content}</p>
-                    ${currentUser && (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN') ? `
-                        <div class="mt-1">
-                            <button class="btn btn-sm btn-outline-warning" onclick="toggleComment(${c.commentId})">
-                                ${c.status === 'VISIBLE' ? 'Ẩn' : 'Hiện'}
+            container.innerHTML = comments.map(c => renderCommentTree(c)).join('');
+        }
+
+        function renderCommentTree(comment, level = 0) {
+            const indent = level > 0 ? 'comment-reply' : '';
+            const isMod = currentUser && (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN');
+            const likeCount = comment.likeCount || 0;
+            const dislikeCount = comment.dislikeCount || 0;
+            const hasLiked = currentUser ? (comment.userLiked || false) : false;
+            const hasDisliked = currentUser ? (comment.userDisliked || false) : false;
+
+            let html = `
+                <div class="comment-box ${indent}" id="comment-${comment.commentId}">
+                    <div class="d-flex justify-content-between">
+                        <strong><i class="bi bi-person-circle"></i> ${comment.username || 'Anonymous'}</strong>
+                        <small class="text-muted">${formatDate(comment.createdAt)}</small>
+                    </div>
+                    <p class="mb-1">${comment.content}</p>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        ${currentUser ? `
+                            <button class="btn btn-sm btn-outline-primary like-btn" onclick="toggleCommentLike(${comment.commentId})">
+                                <i class="bi ${hasLiked ? 'bi-heart-fill text-danger' : 'bi-heart'}"></i> <span id="comment-like-${comment.commentId}">${likeCount}</span>
                             </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteComment(${c.commentId})">Xóa</button>
-                        </div>
-                    ` : ''}
+                            <button class="btn btn-sm btn-outline-secondary" onclick="toggleCommentDislike(${comment.commentId})">
+                                <i class="bi ${hasDisliked ? 'bi-hand-thumbs-down-fill text-danger' : 'bi-hand-thumbs-down'}"></i> <span id="comment-dislike-${comment.commentId}">${dislikeCount}</span>
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="showReplyForm(${comment.commentId})">
+                                <i class="bi bi-reply"></i> Trả lời
+                            </button>
+                        ` : ''}
+                        ${isMod ? `
+                            <button class="btn btn-sm btn-outline-warning" onclick="toggleCommentAdmin(${comment.commentId})">
+                                ${comment.status === 'VISIBLE' ? 'Ẩn' : 'Hiện'}
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteCommentAdmin(${comment.commentId})">Xóa</button>
+                        ` : ''}
+                    </div>
+                    <div id="reply-form-${comment.commentId}" style="display:none;" class="mt-2">
+                        <form class="d-flex gap-2" onsubmit="submitReply(event, ${comment.commentId})">
+                            <input type="text" class="form-control form-control-sm" placeholder="Nhập trả lời..." required>
+                            <button class="btn btn-sm btn-primary" type="submit">Gửi</button>
+                            <button class="btn btn-sm btn-secondary" type="button" onclick="hideReplyForm(${comment.commentId})">Hủy</button>
+                        </form>
+                    </div>
+                    ${comment.replies && comment.replies.length > 0 ?
+                    comment.replies.map(r => renderCommentTree(r, level + 1)).join('') :
+                    ''}
                 </div>
-            `).join('');
+            `;
+            return html;
+        }
+
+        function showReplyForm(commentId) {
+            const el = document.getElementById('reply-form-' + commentId);
+            if (el) el.style.display = 'block';
+        }
+
+        function hideReplyForm(commentId) {
+            const el = document.getElementById('reply-form-' + commentId);
+            if (el) el.style.display = 'none';
+        }
+
+        async function submitReply(event, parentId) {
+            event.preventDefault();
+            if (!currentUser) { showToast('Vui lòng đăng nhập', 'warning'); return; }
+            const form = event.target;
+            const input = form.querySelector('input');
+            const content = input.value.trim();
+            if (!content) return;
+            const result = await callApi('POST', '/comments', {
+                action: 'add',
+                content: content,
+                postId: currentPostId,
+                parentId: parentId
+            });
+            if (result.success) {
+                input.value = '';
+                hideReplyForm(parentId);
+                await loadComments(currentPostId);
+                showToast('Đã trả lời', 'success');
+            } else {
+                showToast(result.message || 'Lỗi', 'danger');
+            }
+        }
+
+        async function toggleCommentLike(commentId) {
+            if (!currentUser) { showToast('Vui lòng đăng nhập', 'warning'); return; }
+            const result = await callApi('POST', '/comment/like', { id: commentId });
+            if (result.success) {
+                document.getElementById('comment-like-' + commentId).textContent = result.likeCount || 0;
+                document.getElementById('comment-dislike-' + commentId).textContent = result.dislikeCount || 0;
+                // Cập nhật icon
+                const btn = document.querySelector(`#comment-${commentId} .btn-outline-primary i`);
+                if (btn) {
+                    btn.className = 'bi bi-heart-fill text-danger';
+                }
+                showToast('Đã thích', 'success');
+            } else {
+                showToast(result.message || 'Lỗi', 'danger');
+            }
+        }
+
+        async function toggleCommentDislike(commentId) {
+            if (!currentUser) { showToast('Vui lòng đăng nhập', 'warning'); return; }
+            const result = await callApi('POST', '/comment/dislike', { id: commentId });
+            if (result.success) {
+                document.getElementById('comment-like-' + commentId).textContent = result.likeCount || 0;
+                document.getElementById('comment-dislike-' + commentId).textContent = result.dislikeCount || 0;
+                const btn = document.querySelector(`#comment-${commentId} .btn-outline-secondary i`);
+                if (btn) {
+                    btn.className = 'bi bi-hand-thumbs-down-fill text-danger';
+                }
+                showToast('Đã không thích', 'success');
+            } else {
+                showToast(result.message || 'Lỗi', 'danger');
+            }
         }
 
         async function toggleLike() {
@@ -189,26 +325,26 @@
             }
         }
 
-        async function toggleComment(commentId) {
-            // Lấy trạng thái hiện tại
-            const commentEl = document.querySelector(`button[onclick="toggleComment(${commentId})"]`);
-            const isVisible = commentEl.textContent.trim() === 'Ẩn';
-            const action = isVisible ? 'hide' : 'restore';
-            const result = await callApi('POST', '/comments', { action, id: commentId });
+        async function toggleCommentAdmin(commentId) {
+            const btn = document.querySelector(`button[onclick="toggleCommentAdmin(${commentId})"]`);
+            if (!btn) return;
+            const isVisible = btn.textContent.trim() === 'Ẩn';
+            const action = isVisible ? 'toggle' : 'toggle';
+            const result = await callApi('POST', '/comments', { action: 'toggle', id: commentId });
             if (result.success) {
                 showToast(isVisible ? 'Đã ẩn bình luận' : 'Đã hiện bình luận', 'success');
-                loadComments(currentPostId);
+                await loadComments(currentPostId);
             } else {
                 showToast(result.message || 'Lỗi', 'danger');
             }
         }
 
-        async function deleteComment(commentId) {
+        async function deleteCommentAdmin(commentId) {
             if (!confirm('Xóa bình luận này?')) return;
             const result = await callApi('POST', '/comments', { action: 'delete', id: commentId });
             if (result.success) {
                 showToast('Đã xóa bình luận', 'success');
-                loadComments(currentPostId);
+                await loadComments(currentPostId);
             } else {
                 showToast(result.message || 'Lỗi', 'danger');
             }
@@ -223,8 +359,7 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             loadTheme();
-            checkLogin();
-            loadPost();
+            checkLogin().then(() => loadPost());
         });
     </script>
 </body>

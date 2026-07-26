@@ -216,3 +216,28 @@ INSERT INTO Post (title, summary, content, author_id, category_id, status) VALUE
 (N'Clean Code - Nguyên tắc viết code sạch', N'Những nguyên tắc cơ bản để viết code dễ bảo trì', N'<p>Clean Code giúp code dễ đọc, dễ hiểu, dễ bảo trì và ít lỗi. Các nguyên tắc bao gồm đặt tên rõ ràng, hàm ngắn gọn, và không lặp lại code.</p>', 3, 2, 'APPROVED');
 
 INSERT INTO User_Settings (user_id) VALUES (1), (2), (3);
+
+-- ====================================================
+-- BẢNG COMMENT_INTERACTION (thích bình luận)
+-- ====================================================
+CREATE TABLE Comment_Interaction (
+    interaction_id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    comment_id BIGINT NOT NULL,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('LIKE', 'DISLIKE')),
+    created_at DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (user_id) REFERENCES [User](user_id),
+    FOREIGN KEY (comment_id) REFERENCES Comment(comment_id) ON DELETE CASCADE,
+    CONSTRAINT UQ_User_Comment_Interaction UNIQUE (user_id, comment_id, type)
+);
+
+-- ====================================================
+-- THÊM CỘT text_color VÀO User_Settings
+-- ====================================================
+ALTER TABLE User_Settings ADD text_color VARCHAR(7) DEFAULT '#1a1a2e';
+
+-- ====================================================
+-- THÊM CỘT parent_id VÀO Comment (để trả lời bình luận)
+-- ====================================================
+ALTER TABLE Comment ADD parent_id BIGINT NULL;
+ALTER TABLE Comment ADD CONSTRAINT FK_Comment_Comment FOREIGN KEY (parent_id) REFERENCES Comment(comment_id) ON DELETE NO ACTION;

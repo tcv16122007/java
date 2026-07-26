@@ -108,8 +108,8 @@
                         <h4><i class="bi bi-file-text"></i> Quản lý bài viết</h4>
                         <div class="table-responsive">
                             <table class="table table-hover">
-                                <thead><tr><th>ID</th><th>Tiêu đề</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
-                                <tbody id="myPostsBody"><tr><td colspan="4" class="text-center text-muted">Đang tải...</td></tr></tbody>
+                                <thead><tr><th>ID</th><th>Tiêu đề</th><th>Trạng thái</th><th>Ngày tạo</th><th>Hành động</th></tr></thead>
+                                <tbody id="myPostsBody"><tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr></tbody>
                             </table>
                         </div>`;
                     await loadMyPosts();
@@ -166,14 +166,17 @@
             const posts = await callApi('GET', '/posts?action=my');
             const tbody = document.getElementById('myPostsBody');
             if (!posts || posts.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Chưa có bài viết</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Chưa có bài viết</td></tr>';
                 return;
             }
+            // Sắp xếp giảm dần theo ID (mới nhất lên đầu)
+            posts.sort((a, b) => b.postId - a.postId);
             tbody.innerHTML = posts.map(p => `
                 <tr>
                     <td>${p.postId}</td>
                     <td>${p.title}</td>
                     <td>${getStatusBadge(p.status)}</td>
+                    <td>${formatDate(p.createdAt)}</td>
                     <td>
                         <button class="btn btn-sm btn-danger" onclick="deletePost(${p.postId})"><i class="bi bi-trash"></i></button>
                         ${p.status === 'REJECTED' ? `<button class="btn btn-sm btn-warning" onclick="resubmitPost(${p.postId})">Gửi lại</button>` : ''}
@@ -185,14 +188,22 @@
         async function deletePost(id) {
             if (!confirm('Xóa bài viết này?')) return;
             const result = await callApi('POST', '/posts', { action: 'delete', id });
-            if (result.success) { showToast('Đã xóa', 'success'); loadMyPosts(); }
-            else showToast(result.message || 'Lỗi', 'danger');
+            if (result.success) {
+                showToast('Đã xóa bài viết', 'success');
+                await loadMyPosts(); // refresh lại danh sách
+            } else {
+                showToast(result.message || 'Lỗi xóa bài', 'danger');
+            }
         }
 
         async function resubmitPost(id) {
             const result = await callApi('POST', '/posts', { action: 'resubmit', id });
-            if (result.success) { showToast('Đã gửi lại', 'success'); loadMyPosts(); }
-            else showToast(result.message || 'Lỗi', 'danger');
+            if (result.success) {
+                showToast('Đã gửi lại bài', 'success');
+                await loadMyPosts();
+            } else {
+                showToast(result.message || 'Lỗi gửi lại', 'danger');
+            }
         }
 
         // ---- Write ----
@@ -206,7 +217,10 @@
             e.preventDefault();
             const title = document.getElementById('postTitle').value.trim();
             const content = document.getElementById('postContent').value.trim();
-            if (!title || !content) { showToast('Vui lòng nhập đủ tiêu đề và nội dung', 'danger'); return; }
+            if (!title || !content) {
+                showToast('Vui lòng nhập đủ tiêu đề và nội dung', 'danger');
+                return;
+            }
             const data = {
                 action: 'add',
                 title,

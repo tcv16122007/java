@@ -34,14 +34,14 @@ public class PostDAO {
         return list;
     }
 
-    // ==== Tìm bài viết theo tác giả (cho user) ====
+    // ==== Tìm bài viết theo tác giả (chỉ lấy bài chưa bị xóa) ====
     public List<Post> findByAuthor(long authorId) {
         List<Post> list = new ArrayList<>();
         String sql = "SELECT p.*, u.full_name as authorName, c.category_name as categoryName " +
                      "FROM Post p " +
                      "LEFT JOIN [User] u ON p.author_id = u.user_id " +
                      "LEFT JOIN Category c ON p.category_id = c.category_id " +
-                     "WHERE p.author_id = ? " +
+                     "WHERE p.author_id = ? AND p.status != 'DELETED' " +
                      "ORDER BY p.created_at DESC";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -92,7 +92,6 @@ public class PostDAO {
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 Post p = mapRowWithNames(rs);
-                // Lấy thẻ tag
                 p.setTags(findTagsByPostId(postId));
                 return p;
             }
@@ -119,7 +118,6 @@ public class PostDAO {
                 list.add(t);
             }
         } catch (SQLException e) {
-            // không ném exception, chỉ log
             e.printStackTrace();
         }
         return list;
@@ -215,7 +213,7 @@ public class PostDAO {
         }
     }
 
-    // ==== Lọc bài viết (có phân trang, tìm kiếm, sắp xếp) ====
+    // ==== Lọc bài viết ====
     public List<Post> filter(String categoryId, String tagId, String authorId, String keyword, String sort) {
         List<Post> list = new ArrayList<>();
         StringBuilder sql = new StringBuilder(
@@ -248,7 +246,6 @@ public class PostDAO {
             params.add("%" + keyword + "%");
         }
 
-        // Sắp xếp
         if ("most_viewed".equals(sort)) {
             sql.append("ORDER BY p.view_count DESC");
         } else if ("most_liked".equals(sort)) {
@@ -256,7 +253,7 @@ public class PostDAO {
         } else if ("most_commented".equals(sort)) {
             sql.append("ORDER BY commentCount DESC");
         } else {
-            sql.append("ORDER BY p.created_at DESC"); // mặc định mới nhất
+            sql.append("ORDER BY p.created_at DESC");
         }
 
         try (Connection conn = DBConnection.getConnection();

@@ -32,7 +32,12 @@
             <div class="col-md-3">
                 <div class="card p-3 text-center">
                     <img src="https://ui-avatars.com/api/?name=User&background=667eea&color=fff&size=128"
-                        class="rounded-circle mx-auto mb-3" style="width:120px;height:120px;object-fit:cover;">
+                        class="rounded-circle mx-auto mb-3" style="width:120px;height:120px;object-fit:cover;"
+                        id="avatarPreview">
+                    <div class="mb-2">
+                        <input type="file" id="avatarInput" class="form-control form-control-sm" accept="image/*"
+                            onchange="uploadAvatar(event)">
+                    </div>
                     <h5 id="profileName">Người dùng</h5>
                     <p class="text-muted" id="profileRole">USER</p>
                 </div>
@@ -41,13 +46,18 @@
                     <hr>
                     <div class="mb-2">
                         <label class="form-label small">Màu chính</label>
-                        <input type="color" id="primaryColor" class="form-control form-control-color" value="#0d6efd"
+                        <input type="color" id="primaryColor" class="form-control form-control-color" value="#667eea"
                             onchange="updateSetting('primaryColor', this.value)">
                     </div>
                     <div class="mb-2">
                         <label class="form-label small">Màu nền</label>
-                        <input type="color" id="backgroundColor" class="form-control form-control-color" value="#ffffff"
+                        <input type="color" id="backgroundColor" class="form-control form-control-color" value="#f4f6f9"
                             onchange="updateSetting('backgroundColor', this.value)">
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Màu chữ</label>
+                        <input type="color" id="textColor" class="form-control form-control-color" value="#1a1a2e"
+                            onchange="updateSetting('textColor', this.value)">
                     </div>
                     <div class="mb-2">
                         <label class="form-label small">Font chữ</label>
@@ -125,6 +135,9 @@
                 document.getElementById('profileRole').textContent = user.role;
                 document.getElementById('fullName').value = user.fullName;
                 document.getElementById('email').value = user.email || '';
+                if (user.avatar) {
+                    document.getElementById('avatarPreview').src = user.avatar;
+                }
             } else {
                 info.classList.add('d-none');
                 login.classList.remove('d-none');
@@ -151,8 +164,9 @@
             const res = await callApi('GET', '/settings');
             if (res && !res.error) {
                 settings = res;
-                document.getElementById('primaryColor').value = res.primaryColor || '#0d6efd';
-                document.getElementById('backgroundColor').value = res.backgroundColor || '#ffffff';
+                document.getElementById('primaryColor').value = res.primaryColor || '#667eea';
+                document.getElementById('backgroundColor').value = res.backgroundColor || '#f4f6f9';
+                document.getElementById('textColor').value = res.textColor || '#1a1a2e';
                 document.getElementById('fontFamily').value = res.fontFamily || 'system-ui';
                 document.getElementById('customCss').value = res.customCss || '';
                 applySettings(res);
@@ -161,8 +175,13 @@
 
         function applySettings(settings) {
             const root = document.documentElement;
-            root.style.setProperty('--primary-color', settings.primaryColor || '#0d6efd');
-            root.style.setProperty('--bg-color', settings.backgroundColor || '#ffffff');
+            const primary = settings.primaryColor || '#667eea';
+            const bg = settings.backgroundColor || '#f4f6f9';
+            const text = settings.textColor || '#1a1a2e';
+            root.style.setProperty('--primary-color', primary);
+            root.style.setProperty('--bg-color', bg);
+            document.body.style.backgroundColor = bg;
+            document.body.style.color = text;
             document.body.style.fontFamily = settings.fontFamily || 'system-ui';
             const styleEl = document.getElementById('customStyle') || (() => {
                 const el = document.createElement('style');
@@ -170,7 +189,18 @@
                 document.head.appendChild(el);
                 return el;
             })();
-            styleEl.textContent = settings.customCss || '';
+            let css = settings.customCss || '';
+            // Thêm CSS để áp dụng màu nền và chữ cho các element
+            css += `
+                body { background-color: ${bg} !important; color: ${text} !important; }
+                .card, .filter-section, .sidebar, .login-card, .comment-box {
+                    background-color: ${bg} !important;
+                    color: ${text} !important;
+                }
+                .nav-link { color: ${text} !important; }
+                .text-muted { color: ${text}99 !important; }
+            `;
+            styleEl.textContent = css;
         }
 
         async function updateSetting(key, value) {
@@ -189,6 +219,24 @@
             await updateSetting('customCss', css);
         }
 
+        async function uploadAvatar(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            // Chuyển ảnh thành base64 và gửi lên server (hoặc dùng API)
+            const reader = new FileReader();
+            reader.onload = async function (e) {
+                const base64 = e.target.result;
+                const result = await callApi('POST', '/users', { action: 'updateAvatar', avatar: base64 });
+                if (result.success) {
+                    document.getElementById('avatarPreview').src = base64;
+                    showToast('Đã cập nhật ảnh đại diện', 'success');
+                } else {
+                    showToast(result.message || 'Lỗi', 'danger');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
         document.getElementById('profileForm').addEventListener('submit', async function (e) {
             e.preventDefault();
             const fullName = document.getElementById('fullName').value.trim();
@@ -200,14 +248,12 @@
             if (!fullName) { showToast('Họ tên không được để trống', 'danger'); return; }
             if (email && !email.includes('@')) { showToast('Email không hợp lệ', 'danger'); return; }
 
-            // Nếu có nhập mật khẩu mới
             if (newPassword || confirmPassword || oldPassword) {
                 if (!oldPassword) { showToast('Vui lòng nhập mật khẩu cũ', 'danger'); return; }
                 if (newPassword.length < 4) { showToast('Mật khẩu mới phải có ít nhất 4 ký tự', 'danger'); return; }
                 if (newPassword !== confirmPassword) { showToast('Mật khẩu xác nhận không khớp', 'danger'); return; }
             }
 
-            // Gọi API cập nhật profile
             const data = { fullName, email };
             if (oldPassword && newPassword) {
                 data.oldPassword = oldPassword;
