@@ -99,7 +99,7 @@
                         <h4><i class="bi bi-file-text"></i> Quản lý bài viết</h4>
                         <div class="table-responsive">
                             <table class="table table-hover">
-                                <thead><tr><th>ID</th><th>Tiêu đề</th><th>Trạng thái</th><th>Ngày tạo</th><th>Hành động</th></tr></thead>
+                                <thead><tr><th>STT</th><th>Tiêu đề</th><th>Trạng thái</th><th>Ngày tạo</th><th>Hành động</th></tr></thead>
                                 <tbody id="myPostsBody"><tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr></tbody>
                             </table>
                         </div>`;
@@ -167,10 +167,10 @@
                 tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Chưa có bài viết</td></tr>';
                 return;
             }
-            posts.sort((a, b) => b.postId - a.postId);
-            tbody.innerHTML = posts.map(p => `
+            posts.sort((a, b) => a.postId - b.postId);
+            tbody.innerHTML = posts.map((p, index) => `
                 <tr>
-                    <td>${p.postId}</td>
+                    <td>${index + 1}</td>
                     <td>${p.title}</td>
                     <td>${getStatusBadge(p.status)}</td>
                     <td>${formatDate(p.createdAt)}</td>
@@ -187,7 +187,7 @@
             const result = await callApi('POST', '/posts', { action: 'delete', id });
             if (result.success) {
                 showToast('Đã xóa bài viết', 'success');
-                await loadMyPosts();
+                await loadMyPosts(); // tải lại danh sách
             } else {
                 showToast(result.message || 'Lỗi xóa bài', 'danger');
             }

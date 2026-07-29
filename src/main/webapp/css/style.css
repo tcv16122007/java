@@ -7,8 +7,8 @@
 
 body {
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: #f4f6f9;
-    color: #1a1a2e;
+    background: var(--bg-body, #f4f6f9);
+    color: var(--text-color, #1a1a2e);
     transition: background 0.3s ease, color 0.3s ease;
 }
 
@@ -16,10 +16,10 @@ a {
     text-decoration: none;
 }
 
-/* ===== VARIABLES (áp dụng cho theme) ===== */
+/* ===== VARIABLES ===== */
 :root {
     --primary-color: #667eea;
-    --bg-color: #f4f6f9;
+    --bg-body: #f4f6f9;
     --text-color: #1a1a2e;
     --card-bg: #ffffff;
     --border-color: #e0e0e0;
@@ -29,17 +29,18 @@ a {
 }
 
 body.dark-theme {
-    --bg-color: #0d0d1a;
+    --bg-body: #0d0d1a;
     --text-color: #e8e8e8;
     --card-bg: #1a1a2e;
     --border-color: #2a2a4a;
-    --input-bg: #14142a;
-    --hover-bg: #2a2a4a;
+    --input-bg: #ffffff;
+    /* Đảm bảo input luôn sáng ngay cả dark mode */
     --nav-bg: #0a0a15;
+    --hover-bg: #2a2a4a;
 }
 
 body {
-    background: var(--bg-color);
+    background: var(--bg-body);
     color: var(--text-color);
 }
 
@@ -47,7 +48,6 @@ body {
 body.dark-theme .card,
 body.dark-theme .filter-section,
 body.dark-theme .sidebar,
-body.dark-theme .form-control,
 body.dark-theme .list-group-item,
 body.dark-theme .modal-content,
 body.dark-theme .login-card,
@@ -56,6 +56,20 @@ body.dark-theme .dropdown-menu {
     background: var(--card-bg);
     color: var(--text-color);
     border-color: var(--border-color);
+}
+
+body.dark-theme .form-control {
+    background: var(--input-bg);
+    color: #1a1a2e;
+    /* Màu chữ tối để đọc trên nền trắng */
+    border-color: var(--border-color);
+}
+
+body.dark-theme .form-control:focus {
+    background: var(--input-bg);
+    color: #1a1a2e;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 
 body.dark-theme .card-footer {
@@ -92,18 +106,6 @@ body.dark-theme .table-striped>tbody>tr:nth-of-type(odd) {
 
 body.dark-theme .table-hover>tbody>tr:hover {
     background: #1e1e3a;
-}
-
-body.dark-theme .form-control {
-    background: var(--input-bg);
-    color: var(--text-color);
-    border-color: var(--border-color);
-}
-
-body.dark-theme .form-control:focus {
-    background: #1a1a2e;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 
 body.dark-theme .nav-link {

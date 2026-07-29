@@ -49,12 +49,12 @@
                     <hr>
                     <div class="mb-2">
                         <label class="form-label small">Màu chính</label>
-                        <input type="color" id="primaryColor" class="form-control form-control-color" value="#0d6efd"
+                        <input type="color" id="primaryColor" class="form-control form-control-color" value="#667eea"
                             onchange="updateSetting('primaryColor', this.value)">
                     </div>
                     <div class="mb-2">
                         <label class="form-label small">Màu nền</label>
-                        <input type="color" id="backgroundColor" class="form-control form-control-color" value="#ffffff"
+                        <input type="color" id="backgroundColor" class="form-control form-control-color" value="#f4f6f9"
                             onchange="updateSetting('backgroundColor', this.value)">
                     </div>
                     <div class="mb-2">
@@ -78,6 +78,10 @@
                             placeholder="Nhập CSS tùy chỉnh..."></textarea>
                         <button class="btn btn-sm btn-primary mt-1" onclick="saveCustomCss()"><i class="bi bi-save"></i>
                             Lưu CSS</button>
+                    </div>
+                    <!-- Preview -->
+                    <div class="mt-3 p-2 border rounded" style="background: var(--bg-body); color: var(--text-color);">
+                        <small><i class="bi bi-eye"></i> Xem trước: Nền này, chữ này.</small>
                     </div>
                 </div>
             </div>
@@ -141,8 +145,8 @@
             const res = await callApi('GET', '/settings');
             if (res && !res.error) {
                 settings = res;
-                document.getElementById('primaryColor').value = res.primaryColor || '#0d6efd';
-                document.getElementById('backgroundColor').value = res.backgroundColor || '#ffffff';
+                document.getElementById('primaryColor').value = res.primaryColor || '#667eea';
+                document.getElementById('backgroundColor').value = res.backgroundColor || '#f4f6f9';
                 document.getElementById('textColor').value = res.textColor || '#1a1a2e';
                 document.getElementById('fontFamily').value = res.fontFamily || 'system-ui';
                 document.getElementById('customCss').value = res.customCss || '';
@@ -152,8 +156,9 @@
 
         function applySettings(settings) {
             const root = document.documentElement;
-            root.style.setProperty('--primary-color', settings.primaryColor || '#0d6efd');
-            root.style.setProperty('--bg-color', settings.backgroundColor || '#ffffff');
+            // Chỉ set màu nền body, text và primary, không ảnh hưởng card/input
+            root.style.setProperty('--primary-color', settings.primaryColor || '#667eea');
+            root.style.setProperty('--bg-body', settings.backgroundColor || '#f4f6f9');
             root.style.setProperty('--text-color', settings.textColor || '#1a1a2e');
             document.body.style.fontFamily = settings.fontFamily || 'system-ui';
             const styleEl = document.getElementById('customStyle') || (() => {
@@ -197,7 +202,6 @@
                         currentUser.avatar = data.avatarUrl;
                         const url = '/java' + data.avatarUrl + '?t=' + Date.now();
                         document.getElementById('avatarImgBig').src = url;
-                        // updateUI sẽ cập nhật avatar navbar
                         updateUI(currentUser);
                     }
                 } else {

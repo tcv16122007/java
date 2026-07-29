@@ -14,6 +14,7 @@ import com.java.dao.CommentDAO;
 import com.java.dao.InteractionDAO;
 import com.java.dao.PasswordResetTokenDAO;
 import com.java.dao.PostDAO;
+import com.java.dao.ReportDAO;
 import com.java.dao.TagDAO;
 import com.java.dao.UserDAO;
 import com.java.dao.UserSettingsDAO;
@@ -35,7 +36,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
 
 @WebServlet("/api/*")
-@MultipartConfig(maxFileSize = 5 * 1024 * 1024) // 5MB
+@MultipartConfig(maxFileSize = 5 * 1024 * 1024)
 public class ApiServlet extends HttpServlet {
 
     private final Gson gson = new Gson();
@@ -47,6 +48,7 @@ public class ApiServlet extends HttpServlet {
     private final InteractionDAO interactionDAO = new InteractionDAO();
     private final UserSettingsDAO settingsDAO = new UserSettingsDAO();
     private final PasswordResetTokenDAO resetTokenDAO = new PasswordResetTokenDAO();
+    private final ReportDAO reportDAO = new ReportDAO();
 
     // ============ GET ============
     @Override
@@ -128,8 +130,13 @@ public class ApiServlet extends HttpServlet {
                             String tagId = req.getParameter("tagId");
                             String keyword = req.getParameter("keyword");
                             String sort = req.getParameter("sort");
-                            List<Post> posts = postDAO.filter(categoryId, tagId, null, keyword, sort);
-                            resp.getWriter().write(gson.toJson(posts));
+                            String pageStr = req.getParameter("page");
+                            String limitStr = req.getParameter("limit");
+                            int page = (pageStr != null && !pageStr.isEmpty()) ? Integer.parseInt(pageStr) : 1;
+                            int limit = (limitStr != null && !limitStr.isEmpty()) ? Integer.parseInt(limitStr) : 9;
+
+                            Map<String, Object> result = postDAO.filterWithPaging(categoryId, tagId, null, keyword, sort, page, limit);
+                            resp.getWriter().write(gson.toJson(result));
                         }
                         default -> {
                             Map<String, Object> err = new HashMap<>();
@@ -492,6 +499,102 @@ public class ApiServlet extends HttpServlet {
                     }
                 }
 
+                // ===== UPDATE POST =====
+                case "/posts/update" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long postId = Long.parseLong(req.getParameter("postId"));
+                    Post p = postDAO.findById(postId);
+                    if (p == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Bài viết không tồn tại");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    if (p.getAuthorId() != currentUser.getUserId() && !"ADMIN".equals(currentUser.getRole())) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Không có quyền sửa bài viết này");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    p.setTitle(req.getParameter("title"));
+                    p.setSummary(req.getParameter("summary"));
+                    p.setContent(req.getParameter("content"));
+                    p.setCategoryId(Long.parseLong(req.getParameter("categoryId")));
+                    p.setThumbnail(req.getParameter("thumbnail"));
+                    boolean ok = postDAO.update(p);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    result.put("message", ok ? "Cập nhật thành công" : "Cập nhật thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
+                // ===== RESTORE POST =====
+                case "/posts/restore" -> {
+                    if (currentUser == null || (!"MODERATOR".equals(currentUser.getRole()) && !"ADMIN".equals(currentUser.getRole()))) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Không có quyền");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long postId = Long.parseLong(req.getParameter("postId"));
+                    boolean ok = postDAO.restore(postId);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    result.put("message", ok ? "Đã khôi phục bài viết" : "Khôi phục thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
+                // ===== REPORT POST =====
+                case "/posts/report" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long postId = Long.parseLong(req.getParameter("postId"));
+                    String reason = req.getParameter("reason");
+                    if (reason == null || reason.trim().isEmpty()) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Lý do báo cáo không được để trống");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    boolean ok = reportDAO.insertReport(postId, null, currentUser.getUserId(), reason.trim());
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    result.put("message", ok ? "Đã gửi báo cáo" : "Gửi báo cáo thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
+                // ===== REPORT COMMENT =====
+                case "/comments/report" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long commentId = Long.parseLong(req.getParameter("commentId"));
+                    String reason = req.getParameter("reason");
+                    if (reason == null || reason.trim().isEmpty()) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Lý do báo cáo không được để trống");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    boolean ok = reportDAO.insertReport(null, commentId, currentUser.getUserId(), reason.trim());
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    result.put("message", ok ? "Đã gửi báo cáo" : "Gửi báo cáo thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
                 // ===== COMMENTS =====
                 case "/comments" -> {
                     if (currentUser == null) {
@@ -716,7 +819,6 @@ public class ApiServlet extends HttpServlet {
                     String avatarUrl = "/uploads/avatars/" + fileName;
                     boolean ok = userDAO.updateAvatar(currentUser.getUserId(), avatarUrl);
                     
-                    // Cập nhật session
                     if (ok) {
                         currentUser.setAvatar(avatarUrl);
                         session.setAttribute("user", currentUser);
