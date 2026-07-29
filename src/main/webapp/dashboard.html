@@ -99,7 +99,7 @@
                         <h4><i class="bi bi-file-text"></i> Quản lý bài viết</h4>
                         <div class="table-responsive">
                             <table class="table table-hover">
-                                <thead><tr><th>ID</th><th>Tiêu đề</th><th>Trạng thái</th><th>Ngày tạo</th><th>Hành động</th></tr></thead>
+                                <thead><tr><th>STT</th><th>Tiêu đề</th><th>Trạng thái</th><th>Ngày tạo</th><th>Hành động</th></tr></thead>
                                 <tbody id="myPostsBody"><tr><td colspan="5" class="text-center text-muted">Đang tải...</td></tr></tbody>
                             </table>
                         </div>`;
@@ -137,7 +137,12 @@
                 case 'comments':
                     content.innerHTML = `
                         <h4><i class="bi bi-chat"></i> Quản lý bình luận</h4>
-                        <div id="commentList" class="table-responsive"></div>`;
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead><tr><th>STT</th><th>Nội dung</th><th>Bài viết</th><th>Người dùng</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+                                <tbody id="commentListBody"><tr><td colspan="6" class="text-center text-muted">Đang tải...</td></tr></tbody>
+                            </table>
+                        </div>`;
                     await loadAllComments();
                     break;
                 case 'moderation':
@@ -161,45 +166,60 @@
 
         // ---- My Posts ----
         async function loadMyPosts() {
-            const posts = await callApi('GET', '/posts?action=my');
-            const tbody = document.getElementById('myPostsBody');
-            if (!posts || posts.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Chưa có bài viết</td></tr>';
-                return;
+            try {
+                const posts = await callApi('GET', '/posts?action=my');
+                const tbody = document.getElementById('myPostsBody');
+                if (!posts || posts.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Chưa có bài viết</td></tr>';
+                    return;
+                }
+                posts.sort((a, b) => a.postId - b.postId);
+                tbody.innerHTML = posts.map((p, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${p.title}</td>
+                        <td>${getStatusBadge(p.status)}</td>
+                        <td>${formatDate(p.createdAt)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deletePost(${p.postId})"><i class="bi bi-trash"></i></button>
+                            ${p.status === 'REJECTED' ? `<button class="btn btn-sm btn-warning" onclick="resubmitPost(${p.postId})">Gửi lại</button>` : ''}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                document.getElementById('myPostsBody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>';
+                console.error('loadMyPosts error:', e);
             }
-            posts.sort((a, b) => b.postId - a.postId);
-            tbody.innerHTML = posts.map(p => `
-                <tr>
-                    <td>${p.postId}</td>
-                    <td>${p.title}</td>
-                    <td>${getStatusBadge(p.status)}</td>
-                    <td>${formatDate(p.createdAt)}</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="deletePost(${p.postId})"><i class="bi bi-trash"></i></button>
-                        ${p.status === 'REJECTED' ? `<button class="btn btn-sm btn-warning" onclick="resubmitPost(${p.postId})">Gửi lại</button>` : ''}
-                    </td>
-                </tr>
-            `).join('');
         }
 
         async function deletePost(id) {
             if (!confirm('Xóa bài viết này?')) return;
-            const result = await callApi('POST', '/posts', { action: 'delete', id });
-            if (result.success) {
-                showToast('Đã xóa bài viết', 'success');
-                await loadMyPosts();
-            } else {
-                showToast(result.message || 'Lỗi xóa bài', 'danger');
+            try {
+                const result = await callApi('POST', '/posts', { action: 'delete', id });
+                if (result.success) {
+                    showToast('Đã xóa bài viết', 'success');
+                    await loadMyPosts();
+                } else {
+                    showToast(result.message || result.error || 'Lỗi xóa bài', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+                console.error('deletePost error:', e);
             }
         }
 
         async function resubmitPost(id) {
-            const result = await callApi('POST', '/posts', { action: 'resubmit', id });
-            if (result.success) {
-                showToast('Đã gửi lại bài', 'success');
-                await loadMyPosts();
-            } else {
-                showToast(result.message || 'Lỗi gửi lại', 'danger');
+            try {
+                const result = await callApi('POST', '/posts', { action: 'resubmit', id });
+                if (result.success) {
+                    showToast('Đã gửi lại bài', 'success');
+                    await loadMyPosts();
+                } else {
+                    showToast(result.message || result.error || 'Lỗi gửi lại', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+                console.error('resubmitPost error:', e);
             }
         }
 
@@ -218,45 +238,55 @@
                 showToast('Vui lòng nhập đủ tiêu đề và nội dung', 'danger');
                 return;
             }
-            const data = {
-                action: 'add',
-                title,
-                content,
-                summary: document.getElementById('postSummary').value.trim(),
-                categoryId: document.getElementById('postCategory').value
-            };
-            const result = await callApi('POST', '/posts', data);
-            if (result.success) {
-                showToast('✅ ' + result.message, 'success');
-                loadSection('posts');
-            } else {
-                showToast('❌ ' + result.message, 'danger');
+            try {
+                const data = {
+                    action: 'add',
+                    title,
+                    content,
+                    summary: document.getElementById('postSummary').value.trim(),
+                    categoryId: document.getElementById('postCategory').value
+                };
+                const result = await callApi('POST', '/posts', data);
+                if (result.success) {
+                    showToast('✅ ' + result.message, 'success');
+                    loadSection('posts');
+                } else {
+                    showToast('❌ ' + (result.message || result.error || 'Lỗi đăng bài'), 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+                console.error('submitPost error:', e);
             }
         }
 
         // ---- Categories ----
         async function loadCategories() {
-            const cats = await callApi('GET', '/categories');
-            const container = document.getElementById('categoryList');
-            if (!cats || cats.length === 0) {
-                container.innerHTML = '<p class="text-muted">Chưa có danh mục</p>';
-                return;
+            try {
+                const cats = await callApi('GET', '/categories');
+                const container = document.getElementById('categoryList');
+                if (!cats || cats.length === 0) {
+                    container.innerHTML = '<p class="text-muted">Chưa có danh mục</p>';
+                    return;
+                }
+                const canEdit = currentUser && (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN');
+                container.innerHTML = `<table class="table"><thead><tr><th>Tên</th><th>Mô tả</th>${canEdit ? '<th>Hành động</th>' : ''}</tr></thead><tbody>
+                    ${cats.map(c => `
+                        <tr>
+                            <td>${c.categoryName}</td>
+                            <td>${c.description || ''}</td>
+                            ${canEdit ? `
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="editCategory(${c.categoryId}, '${c.categoryName}', '${c.description || ''}')"><i class="bi bi-pencil"></i></button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory(${c.categoryId})"><i class="bi bi-trash"></i></button>
+                                </td>
+                            ` : ''}
+                        </tr>
+                    `).join('')}
+                </tbody></table>`;
+            } catch (e) {
+                document.getElementById('categoryList').innerHTML = '<p class="text-danger">Lỗi tải danh mục</p>';
+                console.error('loadCategories error:', e);
             }
-            const canEdit = currentUser && (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN');
-            container.innerHTML = `<table class="table"><thead><tr><th>Tên</th><th>Mô tả</th>${canEdit ? '<th>Hành động</th>' : ''}</tr></thead><tbody>
-                ${cats.map(c => `
-                    <tr>
-                        <td>${c.categoryName}</td>
-                        <td>${c.description || ''}</td>
-                        ${canEdit ? `
-                            <td>
-                                <button class="btn btn-sm btn-outline-primary" onclick="editCategory(${c.categoryId}, '${c.categoryName}', '${c.description || ''}')"><i class="bi bi-pencil"></i></button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory(${c.categoryId})"><i class="bi bi-trash"></i></button>
-                            </td>
-                        ` : ''}
-                    </tr>
-                `).join('')}
-            </tbody></table>`;
         }
 
         async function addCategory(e) {
@@ -264,14 +294,19 @@
             const name = document.getElementById('newCategoryName').value.trim();
             const desc = document.getElementById('newCategoryDesc').value.trim();
             if (!name) { showToast('Tên danh mục không được để trống', 'danger'); return; }
-            const result = await callApi('POST', '/categories', { action: 'add', name, description: desc });
-            if (result.success) {
-                showToast('Đã thêm danh mục', 'success');
-                document.getElementById('newCategoryName').value = '';
-                document.getElementById('newCategoryDesc').value = '';
-                loadCategories();
-            } else {
-                showToast(result.message || 'Lỗi', 'danger');
+            try {
+                const result = await callApi('POST', '/categories', { action: 'add', name, description: desc });
+                if (result.success) {
+                    showToast('Đã thêm danh mục', 'success');
+                    document.getElementById('newCategoryName').value = '';
+                    document.getElementById('newCategoryDesc').value = '';
+                    loadCategories();
+                } else {
+                    showToast(result.message || result.error || 'Lỗi', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+                console.error('addCategory error:', e);
             }
         }
 
@@ -286,34 +321,43 @@
                         showToast('Đã cập nhật', 'success');
                         loadCategories();
                     } else {
-                        showToast(result.message || 'Lỗi', 'danger');
+                        showToast(result.message || result.error || 'Lỗi', 'danger');
                     }
+                })
+                .catch(e => {
+                    showToast('Lỗi kết nối', 'danger');
+                    console.error('editCategory error:', e);
                 });
         }
 
         async function deleteCategory(id) {
             if (!confirm('Xóa danh mục này?')) return;
-            const result = await callApi('POST', '/categories', { action: 'delete', id });
-            if (result.success) {
-                showToast('Đã xóa danh mục', 'success');
-                loadCategories();
-            } else {
-                showToast(result.message || 'Lỗi', 'danger');
+            try {
+                const result = await callApi('POST', '/categories', { action: 'delete', id });
+                if (result.success) {
+                    showToast('Đã xóa danh mục', 'success');
+                    loadCategories();
+                } else {
+                    showToast(result.message || result.error || 'Lỗi', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+                console.error('deleteCategory error:', e);
             }
         }
 
         // ---- All Comments ----
         async function loadAllComments() {
-            const comments = await callApi('GET', '/comments?action=all');
-            const container = document.getElementById('commentList');
-            if (!comments || comments.length === 0) {
-                container.innerHTML = '<p class="text-muted">Chưa có bình luận</p>';
-                return;
-            }
-            container.innerHTML = `<table class="table"><thead><tr><th>ID</th><th>Nội dung</th><th>Bài viết</th><th>Người dùng</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>
-                ${comments.map(c => `
+            try {
+                const comments = await callApi('GET', '/comments?action=all');
+                const tbody = document.getElementById('commentListBody');
+                if (!comments || comments.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Chưa có bình luận</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = comments.map((c, index) => `
                     <tr>
-                        <td>${c.commentId}</td>
+                        <td>${index + 1}</td>
                         <td>${c.content}</td>
                         <td>${c.postTitle || 'N/A'}</td>
                         <td>${c.username}</td>
@@ -325,112 +369,192 @@
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteCommentAdmin(${c.commentId})">Xóa</button>
                         </td>
                     </tr>
-                `).join('')}
-            </tbody></table>`;
+                `).join('');
+            } catch (e) {
+                document.getElementById('commentListBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>';
+                console.error('loadAllComments error:', e);
+            }
         }
 
         async function toggleCommentAdmin(id) {
-            const result = await callApi('POST', '/comments', { action: 'toggle', id });
-            if (result.success) { showToast('Đã cập nhật', 'success'); loadAllComments(); }
-            else showToast(result.message || 'Lỗi', 'danger');
+            try {
+                const result = await callApi('POST', '/comments', { action: 'toggle', id });
+                if (result.success) {
+                    showToast('Đã cập nhật', 'success');
+                    loadAllComments();
+                } else {
+                    showToast(result.message || result.error || 'Lỗi', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+                console.error('toggleCommentAdmin error:', e);
+            }
         }
 
         async function deleteCommentAdmin(id) {
             if (!confirm('Xóa bình luận này?')) return;
-            const result = await callApi('POST', '/comments', { action: 'delete', id });
-            if (result.success) { showToast('Đã xóa', 'success'); loadAllComments(); }
-            else showToast(result.message || 'Lỗi', 'danger');
+            try {
+                const result = await callApi('POST', '/comments', { action: 'delete', id });
+                if (result.success) {
+                    showToast('Đã xóa', 'success');
+                    loadAllComments();
+                } else {
+                    showToast(result.message || result.error || 'Lỗi', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+                console.error('deleteCommentAdmin error:', e);
+            }
         }
 
         // ---- Pending Posts (Moderator) ----
         async function loadPendingPosts() {
-            const posts = await callApi('GET', '/posts?action=pending');
             const container = document.getElementById('pendingPosts');
-            if (!posts || posts.length === 0) {
-                container.innerHTML = '<p class="text-muted">Không có bài chờ duyệt</p>';
-                return;
-            }
-            container.innerHTML = posts.map(p => `
-                <div class="card p-3 mb-2">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div><strong>${p.title}</strong> ${getStatusBadge(p.status)}</div>
-                        <div>
-                            <button class="btn btn-sm btn-info" onclick="viewPostForModeration(${p.postId})"><i class="bi bi-eye"></i> Xem</button>
-                            <button class="btn btn-sm btn-success" onclick="approvePost(${p.postId})"><i class="bi bi-check"></i> Duyệt</button>
-                            <button class="btn btn-sm btn-danger" onclick="rejectPost(${p.postId})"><i class="bi bi-x"></i> Từ chối</button>
+            try {
+                const posts = await callApi('GET', '/posts?action=pending');
+                if (!posts || posts.length === 0) {
+                    container.innerHTML = '<p class="text-muted">Không có bài chờ duyệt</p>';
+                    return;
+                }
+                container.innerHTML = posts.map(p => `
+                    <div class="card p-3 mb-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><strong>${p.title}</strong> ${getStatusBadge(p.status)}</div>
+                            <div>
+                                <button class="btn btn-sm btn-info" onclick="viewPostForModeration(${p.postId})"><i class="bi bi-eye"></i> Xem</button>
+                                <button class="btn btn-sm btn-success" onclick="approvePost(${p.postId})"><i class="bi bi-check"></i> Duyệt</button>
+                                <button class="btn btn-sm btn-danger" onclick="rejectPost(${p.postId})"><i class="bi bi-x"></i> Từ chối</button>
+                            </div>
                         </div>
+                        <small class="text-muted">${p.authorName}</small>
                     </div>
-                    <small class="text-muted">${p.authorName}</small>
-                </div>
-            `).join('');
+                `).join('');
+            } catch (e) {
+                container.innerHTML = `<p class="text-danger">Lỗi tải danh sách chờ duyệt: ${e.message}</p>`;
+                console.error('loadPendingPosts error:', e);
+            }
         }
 
         function viewPostForModeration(postId) {
-            const url = window.location.origin + '/java/post-detail.html?id=' + postId + '&mod=1';
+            const url = 'post-detail.html?id=' + postId + '&mod=1';
             window.open(url, '_blank');
         }
 
         async function approvePost(id) {
-            const result = await callApi('POST', '/posts', { action: 'approve', id });
-            if (result.success) { showToast('Đã duyệt', 'success'); loadPendingPosts(); loadMyPosts(); }
-            else showToast(result.message || 'Lỗi', 'danger');
+            try {
+                const result = await callApi('POST', '/posts', { action: 'approve', id });
+                if (result.success) {
+                    showToast('✅ Đã duyệt bài', 'success');
+                    // Tải lại danh sách (không hiển thị lỗi nếu tải lại thất bại)
+                    try {
+                        await loadPendingPosts();
+                        await loadMyPosts();
+                    } catch (e) {
+                        console.warn('Reload list error:', e);
+                    }
+                } else {
+                    const msg = result.message || result.error || 'Lỗi duyệt bài';
+                    showToast('❌ ' + msg, 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối server', 'danger');
+                console.error('approvePost error:', e);
+            }
         }
 
         async function rejectPost(id) {
             const reason = prompt('Lý do từ chối:');
             if (reason === null) return;
-            const result = await callApi('POST', '/posts', { action: 'reject', id });
-            if (result.success) { showToast('Đã từ chối', 'warning'); loadPendingPosts(); loadMyPosts(); }
-            else showToast(result.message || 'Lỗi', 'danger');
+            try {
+                const result = await callApi('POST', '/posts', { action: 'reject', id });
+                if (result.success) {
+                    showToast('⚠️ Đã từ chối bài', 'warning');
+                    try {
+                        await loadPendingPosts();
+                        await loadMyPosts();
+                    } catch (e) {
+                        console.warn('Reload list error:', e);
+                    }
+                } else {
+                    const msg = result.message || result.error || 'Lỗi từ chối bài';
+                    showToast('❌ ' + msg, 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối server', 'danger');
+                console.error('rejectPost error:', e);
+            }
         }
 
         // ---- Users (Admin) ----
         async function loadUsers() {
             const keyword = document.getElementById('searchUserInput')?.value || '';
             const url = keyword ? `/users?action=search&keyword=${encodeURIComponent(keyword)}` : '/users?action=list';
-            const users = await callApi('GET', url);
-            const container = document.getElementById('userList');
-            if (!users || users.length === 0) {
-                container.innerHTML = '<p class="text-muted">Không tìm thấy user</p>';
-                return;
+            try {
+                const users = await callApi('GET', url);
+                const container = document.getElementById('userList');
+                if (!users || users.length === 0) {
+                    container.innerHTML = '<p class="text-muted">Không tìm thấy user</p>';
+                    return;
+                }
+                container.innerHTML = `<table class="table"><thead><tr><th>Username</th><th>Họ tên</th><th>Quyền</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>
+                    ${users.map(u => `
+                        <tr>
+                            <td>${u.username}</td>
+                            <td>${u.fullName}</td>
+                            <td>
+                                <select class="form-select form-select-sm" style="width:120px;display:inline-block;" onchange="changeRole(${u.userId}, this.value)" ${u.userId === currentUser?.userId ? 'disabled' : ''}>
+                                    <option value="USER" ${u.role === 'USER' ? 'selected' : ''}>User</option>
+                                    <option value="MODERATOR" ${u.role === 'MODERATOR' ? 'selected' : ''}>Moderator</option>
+                                    <option value="ADMIN" ${u.role === 'ADMIN' ? 'selected' : ''}>Admin</option>
+                                </select>
+                            </td>
+                            <td>${getStatusBadge(u.status)}</td>
+                            <td>
+                                ${u.userId !== currentUser?.userId ? `
+                                    <button class="btn btn-sm btn-${u.status === 'ACTIVE' ? 'danger' : 'success'}" onclick="toggleUser(${u.userId})">${u.status === 'ACTIVE' ? '🔒 Khóa' : '🔓 Mở'}</button>
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody></table>`;
+            } catch (e) {
+                document.getElementById('userList').innerHTML = '<p class="text-danger">Lỗi tải danh sách user</p>';
+                console.error('loadUsers error:', e);
             }
-            container.innerHTML = `<table class="table"><thead><tr><th>Username</th><th>Họ tên</th><th>Quyền</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>
-                ${users.map(u => `
-                    <tr>
-                        <td>${u.username}</td>
-                        <td>${u.fullName}</td>
-                        <td>
-                            <select class="form-select form-select-sm" style="width:120px;display:inline-block;" onchange="changeRole(${u.userId}, this.value)" ${u.userId === currentUser?.userId ? 'disabled' : ''}>
-                                <option value="USER" ${u.role === 'USER' ? 'selected' : ''}>User</option>
-                                <option value="MODERATOR" ${u.role === 'MODERATOR' ? 'selected' : ''}>Moderator</option>
-                                <option value="ADMIN" ${u.role === 'ADMIN' ? 'selected' : ''}>Admin</option>
-                            </select>
-                        </td>
-                        <td>${getStatusBadge(u.status)}</td>
-                        <td>
-                            ${u.userId !== currentUser?.userId ? `
-                                <button class="btn btn-sm btn-${u.status === 'ACTIVE' ? 'danger' : 'success'}" onclick="toggleUser(${u.userId})">${u.status === 'ACTIVE' ? '🔒 Khóa' : '🔓 Mở'}</button>
-                            ` : ''}
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody></table>`;
         }
 
         async function toggleUser(id) {
-            const user = await callApi('GET', `/users?action=detail&id=${id}`);
-            if (user.error) return;
-            const newStatus = user.status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
-            const result = await callApi('POST', '/users', { action: 'block', id, status: newStatus });
-            if (result.success) { showToast(`Đã ${newStatus === 'ACTIVE' ? 'mở khóa' : 'khóa'}`, 'success'); loadUsers(); }
-            else showToast(result.message || 'Lỗi', 'danger');
+            try {
+                const user = await callApi('GET', `/users?action=detail&id=${id}`);
+                if (user.error) return;
+                const newStatus = user.status === 'ACTIVE' ? 'BLOCKED' : 'ACTIVE';
+                const result = await callApi('POST', '/users', { action: 'block', id, status: newStatus });
+                if (result.success) {
+                    showToast(`Đã ${newStatus === 'ACTIVE' ? 'mở khóa' : 'khóa'}`, 'success');
+                    loadUsers();
+                } else {
+                    showToast(result.message || result.error || 'Lỗi', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+                console.error('toggleUser error:', e);
+            }
         }
 
         async function changeRole(id, newRole) {
             if (!confirm('Đổi quyền người dùng này?')) return;
-            const result = await callApi('POST', '/users', { action: 'changeRole', id, role: newRole });
-            if (result.success) { showToast(`Đã đổi thành ${newRole}`, 'info'); loadUsers(); }
-            else showToast(result.message || 'Lỗi', 'danger');
+            try {
+                const result = await callApi('POST', '/users', { action: 'changeRole', id, role: newRole });
+                if (result.success) {
+                    showToast(`Đã đổi thành ${newRole}`, 'info');
+                    loadUsers();
+                } else {
+                    showToast(result.message || result.error || 'Lỗi', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+                console.error('changeRole error:', e);
+            }
         }
 
         // ---- Logout ----

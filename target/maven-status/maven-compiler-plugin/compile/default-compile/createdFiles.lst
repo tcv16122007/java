@@ -15,5 +15,6 @@ com\java\dao\UserSettingsDAO.class
 com\java\model\Tag.class
 com\java\servlet\FileServlet.class
 com\java\dao\TagDAO.class
+com\java\dao\ReportDAO.class
 com\java\model\Interaction.class
 com\java\model\PasswordResetToken.class

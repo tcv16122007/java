@@ -1,17 +1,22 @@
-// ====== API HELPER ======
+// ====== API HELPER (có timestamp chống cache) ======
 async function callApi(method, endpoint, data = null) {
     const opts = {
         method,
         headers: {},
         credentials: 'include'
     };
+    // Thêm timestamp để tránh cache
+    const timestamp = Date.now();
+    const separator = endpoint.includes('?') ? '&' : '?';
+    const url = endpoint + separator + '_t=' + timestamp;
+
     if (data) {
         opts.headers['Content-Type'] = 'application/x-www-form-urlencoded';
         opts.body = new URLSearchParams(data);
     }
     const contextPath = window.location.pathname.split('/')[1] || '';
     const base = contextPath ? '/' + contextPath + '/api' : '/api';
-    const res = await fetch(base + endpoint, opts);
+    const res = await fetch(base + url, opts);
     return res.json();
 }
 
@@ -53,17 +58,18 @@ function loadTheme() {
     if (theme === 'dark') document.body.classList.add('dark-theme');
 }
 
-// ====== APPLY GLOBAL SETTINGS ======
+// ====== APPLY GLOBAL SETTINGS (chỉ set body background, text color, primary) ======
 async function applyGlobalSettings() {
     try {
         const res = await callApi('GET', '/settings');
         if (res && !res.error) {
             const root = document.documentElement;
-            root.style.setProperty('--primary-color', res.primaryColor || '#0d6efd');
-            root.style.setProperty('--bg-color', res.backgroundColor || '#ffffff');
+            // Chỉ set các biến liên quan đến body, không ảnh hưởng đến card/input
+            root.style.setProperty('--primary-color', res.primaryColor || '#667eea');
+            root.style.setProperty('--bg-body', res.backgroundColor || '#f4f6f9');
             root.style.setProperty('--text-color', res.textColor || '#1a1a2e');
             document.body.style.fontFamily = res.fontFamily || 'system-ui';
-            document.body.style.backgroundColor = res.backgroundColor || '#ffffff';
+            // Custom CSS
             const styleEl = document.getElementById('customGlobalStyle') || (() => {
                 const el = document.createElement('style');
                 el.id = 'customGlobalStyle';
@@ -75,7 +81,7 @@ async function applyGlobalSettings() {
     } catch (e) { console.warn('Apply settings error', e); }
 }
 
-// ====== GLOBAL UI UPDATE (cập nhật cả avatar trên navbar và profile) ======
+// ====== GLOBAL UI UPDATE ======
 function updateUI(user) {
     console.log('updateUI called with user:', user);
     const userInfo = document.getElementById('userInfo');
@@ -96,7 +102,6 @@ function updateUI(user) {
         if (logoutBtn) logoutBtn.classList.remove('d-none');
         if (dashboardBtn) dashboardBtn.classList.remove('d-none');
 
-        // Cập nhật avatar trên navbar và profile
         if (user.avatar) {
             const url = '/java' + user.avatar + '?t=' + Date.now();
             if (avatarImg) {
@@ -105,11 +110,9 @@ function updateUI(user) {
             }
             if (avatarImgBig) {
                 avatarImgBig.src = url;
-                // Không ẩn avatarImgBig vì nó luôn hiển thị (fallback ui-avatars)
             }
         } else {
             if (avatarImg) avatarImg.style.display = 'none';
-            // avatarImgBig giữ nguyên (ui-avatars mặc định)
         }
     } else {
         if (userInfo) {
@@ -121,7 +124,6 @@ function updateUI(user) {
         if (logoutBtn) logoutBtn.classList.add('d-none');
         if (dashboardBtn) dashboardBtn.classList.add('d-none');
         if (avatarImg) avatarImg.style.display = 'none';
-        // avatarImgBig giữ nguyên (ui-avatars mặc định)
     }
 }
 

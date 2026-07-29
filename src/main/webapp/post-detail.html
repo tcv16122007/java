@@ -35,11 +35,72 @@
         </div>
     </div>
 
+    <!-- Modal Báo cáo -->
+    <div class="modal fade" id="reportModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Báo cáo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="reportForm">
+                        <input type="hidden" id="reportTarget" value="post">
+                        <input type="hidden" id="reportTargetId" value="">
+                        <div class="mb-3">
+                            <label class="form-label">Lý do báo cáo</label>
+                            <textarea id="reportReason" class="form-control" rows="3" placeholder="Nhập lý do..."
+                                required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-danger">Gửi báo cáo</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Sửa bài viết -->
+    <div class="modal fade" id="editPostModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Sửa bài viết</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editPostForm">
+                        <input type="hidden" id="editPostId">
+                        <div class="mb-2">
+                            <label class="form-label">Tiêu đề</label>
+                            <input type="text" id="editTitle" class="form-control" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Tóm tắt</label>
+                            <input type="text" id="editSummary" class="form-control">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Danh mục</label>
+                            <select id="editCategory" class="form-select"></select>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Nội dung</label>
+                            <textarea id="editContent" class="form-control" rows="6" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Cập nhật</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="js/app.js"></script>
     <script>
         let currentUser = null;
         let currentPostId = null;
+        let currentPost = null;
+        let reportModal = null;
+        let editPostModal = null;
 
         function getPostId() {
             const params = new URLSearchParams(window.location.search);
@@ -61,7 +122,6 @@
         function renderContent(content) {
             if (!content) return '';
             let html = content;
-
             html = html.replace(
                 /(?:https?:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com\/watch\?v=)([\w-]+)(?:&[^\s]+)?/g,
                 (match, id) => {
@@ -69,22 +129,18 @@
                     return `<div class="media-container"><iframe src="https://www.youtube.com/embed/${cleanId}" allowfullscreen></iframe></div>`;
                 }
             );
-
             html = html.replace(
                 /(https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp))/gi,
                 (match) => `<div class="media-container"><img src="${match}" alt="image" loading="lazy"></div>`
             );
-
             html = html.replace(
                 /(https?:\/\/[^\s]+\.(?:mp4|webm))/gi,
                 (match) => `<div class="media-container"><video controls><source src="${match}" type="video/mp4"></video></div>`
             );
-
             html = html.replace(
                 /(https?:\/\/[^\s<]+)(?![^<]*>)/g,
                 (match) => `<a href="${match}" target="_blank" rel="noopener">${match}</a>`
             );
-
             return html;
         }
 
@@ -100,17 +156,43 @@
                 document.getElementById('postContent').innerHTML = `<div class="alert alert-danger">${result.error}</div>`;
                 return;
             }
+            currentPost = result;
 
             const isMod = currentUser && (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN');
-            const canView = result.status === 'APPROVED' || (isMod && result.status !== 'DELETED');
+            const isAuthor = currentUser && currentUser.userId === result.authorId;
+            const canView = result.status === 'APPROVED' || (isMod && result.status !== 'DELETED') || isAuthor;
             if (!canView) {
                 document.getElementById('postContent').innerHTML = `
-                    <div class="alert alert-warning">Bài viết này đang chờ duyệt. Chỉ Moderator/Admin mới có thể xem.</div>
+                    <div class="alert alert-warning">Bạn không có quyền xem bài viết này.</div>
                 `;
                 return;
             }
 
             const renderedContent = renderContent(result.content);
+
+            // Xác định trạng thái hiển thị nút
+            let actionButtons = '';
+            if (isAuthor) {
+                actionButtons += `
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="openEditPost()"><i class="bi bi-pencil"></i> Sửa</button>
+                    <button class="btn btn-sm btn-outline-danger me-1" onclick="deletePost()"><i class="bi bi-trash"></i> Xóa</button>
+                `;
+            }
+            if (isMod) {
+                actionButtons += `
+                    <button class="btn btn-sm btn-outline-danger me-1" onclick="deletePost()"><i class="bi bi-trash"></i> Xóa</button>
+                `;
+                if (result.status === 'DELETED') {
+                    actionButtons += `
+                        <button class="btn btn-sm btn-outline-success" onclick="restorePost()"><i class="bi bi-arrow-counterclockwise"></i> Khôi phục</button>
+                    `;
+                }
+            }
+            if (currentUser && !isAuthor) {
+                actionButtons += `
+                    <button class="btn btn-sm btn-outline-danger me-1" onclick="openReport('post', ${result.postId})"><i class="bi bi-flag"></i> Báo cáo</button>
+                `;
+            }
 
             document.getElementById('postContent').innerHTML = `
                 <div class="card p-4">
@@ -119,6 +201,7 @@
                         <i class="bi bi-person"></i> ${result.authorName} |
                         <i class="bi bi-calendar"></i> ${formatDate(result.createdAt)} |
                         <span class="badge ${result.status === 'APPROVED' ? 'bg-success' : 'bg-warning'}">${result.status}</span>
+                        ${actionButtons ? `<br><span class="mt-2 d-inline-block">${actionButtons}</span>` : ''}
                     </div>
                     <div class="mb-4">${renderedContent}</div>
                     <div class="mb-3">
@@ -200,11 +283,11 @@
                             <button class="btn btn-sm btn-outline-primary like-btn" onclick="toggleCommentLike(${comment.commentId})">
                                 <i class="bi ${hasLiked ? 'bi-heart-fill text-danger' : 'bi-heart'}"></i> <span id="comment-like-${comment.commentId}">${likeCount}</span>
                             </button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="toggleCommentDislike(${comment.commentId})">
-                                <i class="bi ${hasDisliked ? 'bi-hand-thumbs-down-fill text-danger' : 'bi-hand-thumbs-down'}"></i> <span id="comment-dislike-${comment.commentId}">${dislikeCount}</span>
-                            </button>
                             <button class="btn btn-sm btn-outline-info" onclick="showReplyForm(${comment.commentId})">
                                 <i class="bi bi-reply"></i> Trả lời
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="openReport('comment', ${comment.commentId})">
+                                <i class="bi bi-flag"></i> Báo cáo
                             </button>
                         ` : ''}
                         ${isMod ? `
@@ -276,20 +359,6 @@
             }
         }
 
-        async function toggleCommentDislike(commentId) {
-            if (!currentUser) { showToast('Vui lòng đăng nhập', 'warning'); return; }
-            const result = await callApi('POST', '/comment/dislike', { id: commentId });
-            if (result.success) {
-                document.getElementById('comment-like-' + commentId).textContent = result.likeCount || 0;
-                document.getElementById('comment-dislike-' + commentId).textContent = result.dislikeCount || 0;
-                const btn = document.querySelector(`#comment-${commentId} .btn-outline-secondary i`);
-                if (btn) btn.className = 'bi bi-hand-thumbs-down-fill text-danger';
-                showToast('Đã không thích', 'success');
-            } else {
-                showToast(result.message || 'Lỗi', 'danger');
-            }
-        }
-
         async function toggleLike() {
             if (!currentUser) {
                 showToast('Vui lòng đăng nhập', 'warning');
@@ -331,6 +400,106 @@
                 showToast(result.message || 'Lỗi', 'danger');
             }
         }
+
+        // ---- Xóa bài viết ----
+        async function deletePost() {
+            if (!confirm('Bạn có chắc muốn xóa bài viết này?')) return;
+            const result = await callApi('POST', '/posts', { action: 'delete', id: currentPostId });
+            if (result.success) {
+                showToast('Đã xóa bài viết', 'success');
+                setTimeout(() => window.location.href = 'index.html', 1000);
+            } else {
+                showToast(result.message || 'Lỗi xóa bài', 'danger');
+            }
+        }
+
+        // ---- Khôi phục bài viết ----
+        async function restorePost() {
+            if (!confirm('Khôi phục bài viết này?')) return;
+            const result = await callApi('POST', '/posts/restore', { postId: currentPostId });
+            if (result.success) {
+                showToast('Đã khôi phục bài viết', 'success');
+                window.location.reload();
+            } else {
+                showToast(result.message || 'Lỗi khôi phục', 'danger');
+            }
+        }
+
+        // ---- Báo cáo ----
+        function openReport(target, targetId) {
+            document.getElementById('reportTarget').value = target;
+            document.getElementById('reportTargetId').value = targetId;
+            const modal = new bootstrap.Modal(document.getElementById('reportModal'));
+            modal.show();
+        }
+
+        document.getElementById('reportForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const target = document.getElementById('reportTarget').value;
+            const targetId = document.getElementById('reportTargetId').value;
+            const reason = document.getElementById('reportReason').value.trim();
+            if (!reason) {
+                showToast('Vui lòng nhập lý do', 'danger');
+                return;
+            }
+            let url = target === 'post' ? '/posts/report' : '/comments/report';
+            const data = target === 'post' ? { postId: targetId, reason } : { commentId: targetId, reason };
+            const result = await callApi('POST', url, data);
+            if (result.success) {
+                showToast('Đã gửi báo cáo', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('reportModal')).hide();
+                document.getElementById('reportReason').value = '';
+            } else {
+                showToast(result.message || 'Lỗi gửi báo cáo', 'danger');
+            }
+        });
+
+        // ---- Sửa bài viết ----
+        async function openEditPost() {
+            if (!currentPost) return;
+            document.getElementById('editPostId').value = currentPost.postId;
+            document.getElementById('editTitle').value = currentPost.title;
+            document.getElementById('editSummary').value = currentPost.summary || '';
+            document.getElementById('editContent').value = currentPost.content;
+            // Load categories
+            const cats = await callApi('GET', '/categories');
+            const sel = document.getElementById('editCategory');
+            if (cats) {
+                sel.innerHTML = cats.map(c =>
+                    `<option value="${c.categoryId}" ${c.categoryId == currentPost.categoryId ? 'selected' : ''}>${c.categoryName}</option>`
+                ).join('');
+            }
+            const modal = new bootstrap.Modal(document.getElementById('editPostModal'));
+            modal.show();
+        }
+
+        document.getElementById('editPostForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const postId = document.getElementById('editPostId').value;
+            const title = document.getElementById('editTitle').value.trim();
+            const content = document.getElementById('editContent').value.trim();
+            const summary = document.getElementById('editSummary').value.trim();
+            const categoryId = document.getElementById('editCategory').value;
+            if (!title || !content) {
+                showToast('Vui lòng nhập đủ tiêu đề và nội dung', 'danger');
+                return;
+            }
+            const data = {
+                postId,
+                title,
+                content,
+                summary,
+                categoryId
+            };
+            const result = await callApi('POST', '/posts/update', data);
+            if (result.success) {
+                showToast('Cập nhật thành công', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('editPostModal')).hide();
+                window.location.reload();
+            } else {
+                showToast(result.message || 'Lỗi cập nhật', 'danger');
+            }
+        });
 
         async function logout() {
             await callApi('POST', '/logout');
