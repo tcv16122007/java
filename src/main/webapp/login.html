@@ -44,8 +44,9 @@
                 <a href="index.html" class="text-decoration-none"><i class="bi bi-arrow-left"></i> Quay lại</a>
                 <a href="forgot-password.html" class="text-decoration-none">Quên mật khẩu?</a>
             </div>
-
-            <!-- Không hiển thị tài khoản test nữa -->
+            <div class="text-center mt-2">
+                <a href="register.html" class="text-decoration-none">Chưa có tài khoản? Đăng ký</a>
+            </div>
         </div>
     </div>
 
@@ -79,9 +80,10 @@
             errorDiv.classList.add('d-none');
 
             try {
-                const res = await fetch('api/login', {
+                const res = await fetch('/java/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    credentials: 'include',
                     body: 'username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password)
                 });
                 const data = await res.json();

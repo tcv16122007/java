@@ -1,6 +1,5 @@
 package com.java.servlet;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -9,15 +8,19 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.google.gson.Gson;
+import com.java.dao.BookmarkDAO;
 import com.java.dao.CategoryDAO;
 import com.java.dao.CommentDAO;
+import com.java.dao.CommentHistoryDAO;
 import com.java.dao.InteractionDAO;
+import com.java.dao.InteractionHistoryDAO;
 import com.java.dao.PasswordResetTokenDAO;
 import com.java.dao.PostDAO;
 import com.java.dao.ReportDAO;
 import com.java.dao.TagDAO;
 import com.java.dao.UserDAO;
 import com.java.dao.UserSettingsDAO;
+import com.java.dao.ViewHistoryDAO;
 import com.java.model.Category;
 import com.java.model.Comment;
 import com.java.model.PasswordResetToken;
@@ -33,7 +36,6 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import jakarta.servlet.http.Part;
 
 @WebServlet("/api/*")
 @MultipartConfig(maxFileSize = 5 * 1024 * 1024)
@@ -49,6 +51,10 @@ public class ApiServlet extends HttpServlet {
     private final UserSettingsDAO settingsDAO = new UserSettingsDAO();
     private final PasswordResetTokenDAO resetTokenDAO = new PasswordResetTokenDAO();
     private final ReportDAO reportDAO = new ReportDAO();
+    private final BookmarkDAO bookmarkDAO = new BookmarkDAO();
+    private final ViewHistoryDAO viewHistoryDAO = new ViewHistoryDAO();
+    private final CommentHistoryDAO commentHistoryDAO = new CommentHistoryDAO();
+    private final InteractionHistoryDAO interactionHistoryDAO = new InteractionHistoryDAO();
 
     // ============ GET ============
     @Override
@@ -212,6 +218,67 @@ public class ApiServlet extends HttpServlet {
                     } else {
                         resp.getWriter().write("{\"error\":\"Invalid action\"}");
                     }
+                }
+                // ===== NEW ENDPOINTS =====
+                case "/bookmarks" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    String action = req.getParameter("action");
+                    if ("list".equals(action)) {
+                        List<Post> bookmarks = bookmarkDAO.getBookmarksByUser(currentUser.getUserId());
+                        resp.getWriter().write(gson.toJson(bookmarks));
+                    } else {
+                        long postId = Long.parseLong(req.getParameter("postId"));
+                        boolean isBookmarked = bookmarkDAO.isBookmarked(currentUser.getUserId(), postId);
+                        Map<String, Object> result = new HashMap<>();
+                        result.put("bookmarked", isBookmarked);
+                        resp.getWriter().write(gson.toJson(result));
+                    }
+                }
+                case "/history/posts" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    List<Map<String, Object>> history = viewHistoryDAO.getViewHistoryByUser(currentUser.getUserId());
+                    resp.getWriter().write(gson.toJson(history));
+                }
+                case "/history/comments" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    List<Comment> comments = commentHistoryDAO.getCommentHistoryByUser(currentUser.getUserId());
+                    resp.getWriter().write(gson.toJson(comments));
+                }
+                case "/history/interactions" -> {
+                    if (currentUser == null || (!"MODERATOR".equals(currentUser.getRole()) && !"ADMIN".equals(currentUser.getRole()))) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Không có quyền");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long userId = Long.parseLong(req.getParameter("userId"));
+                    List<Map<String, Object>> history = interactionHistoryDAO.getUserInteractions(userId);
+                    resp.getWriter().write(gson.toJson(history));
+                }
+                case "/reports" -> {
+                    if (currentUser == null || (!"MODERATOR".equals(currentUser.getRole()) && !"ADMIN".equals(currentUser.getRole()))) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Không có quyền");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    List<Map<String, Object>> reports = reportDAO.findAll();
+                    resp.getWriter().write(gson.toJson(reports));
                 }
                 default -> {
                     Map<String, Object> err = new HashMap<>();
@@ -788,50 +855,133 @@ public class ApiServlet extends HttpServlet {
                     resp.getWriter().write(gson.toJson(result));
                 }
 
-                // ===== UPLOAD AVATAR =====
-                case "/upload-avatar" -> {
+                // ===== BOOKMARK TOGGLE =====
+                case "/bookmark/toggle" -> {
                     if (currentUser == null) {
                         Map<String, Object> err = new HashMap<>();
                         err.put("error", "Chưa đăng nhập");
                         resp.getWriter().write(gson.toJson(err));
                         return;
                     }
-                    Part filePart = req.getPart("avatar");
-                    if (filePart == null || filePart.getSize() == 0) {
-                        Map<String, Object> result = new HashMap<>();
-                        result.put("success", false);
-                        result.put("message", "Không có file được tải lên");
-                        resp.getWriter().write(gson.toJson(result));
-                        return;
+                    long postId = Long.parseLong(req.getParameter("postId"));
+                    boolean isBookmarked = bookmarkDAO.isBookmarked(currentUser.getUserId(), postId);
+                    boolean ok;
+                    if (isBookmarked) {
+                        ok = bookmarkDAO.removeBookmark(currentUser.getUserId(), postId);
+                    } else {
+                        ok = bookmarkDAO.addBookmark(currentUser.getUserId(), postId);
                     }
-
-                    String fileName = "avatar_" + currentUser.getUserId() + "_" + System.currentTimeMillis() + ".jpg";
-                    String uploadPath = getServletContext().getRealPath("/uploads/avatars/");
-                    if (uploadPath == null) {
-                        uploadPath = getServletContext().getRealPath("/") + "uploads" + File.separator + "avatars" + File.separator;
-                    }
-                    if (!uploadPath.endsWith(File.separator)) {
-                        uploadPath += File.separator;
-                    }
-                    File uploadDir = new File(uploadPath);
-                    if (!uploadDir.exists()) {
-                        uploadDir.mkdirs();
-                    }
-                    String filePath = uploadPath + fileName;
-                    filePart.write(filePath);
-
-                    String avatarUrl = "/uploads/avatars/" + fileName;
-                    boolean ok = userDAO.updateAvatar(currentUser.getUserId(), avatarUrl);
-                    
-                    if (ok) {
-                        currentUser.setAvatar(avatarUrl);
-                        session.setAttribute("user", currentUser);
-                    }
-                    
                     Map<String, Object> result = new HashMap<>();
                     result.put("success", ok);
-                    result.put("avatarUrl", avatarUrl);
-                    result.put("message", ok ? "Đã cập nhật ảnh đại diện" : "Cập nhật thất bại");
+                    result.put("bookmarked", !isBookmarked);
+                    result.put("message", ok ? (isBookmarked ? "Đã bỏ lưu" : "Đã lưu bài viết") : "Thao tác thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
+                // ===== VIEW HISTORY =====
+                case "/view-history" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long postId = Long.parseLong(req.getParameter("postId"));
+                    viewHistoryDAO.addViewHistory(currentUser.getUserId(), postId);
+                    resp.getWriter().write("{\"success\":true}");
+                }
+
+                // ===== RESTORE COMMENT (Admin/Mod) =====
+                case "/comments/restore" -> {
+                    if (currentUser == null || (!"MODERATOR".equals(currentUser.getRole()) && !"ADMIN".equals(currentUser.getRole()))) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Không có quyền");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long commentId = Long.parseLong(req.getParameter("commentId"));
+                    boolean ok = commentDAO.restore(commentId);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    result.put("message", ok ? "Đã khôi phục bình luận" : "Khôi phục thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
+                // ===== DELETE COMMENT BY USER =====
+                case "/comments/delete-by-user" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long commentId = Long.parseLong(req.getParameter("commentId"));
+                    Comment c = commentDAO.findById(commentId);
+                    if (c == null || c.getUserId() != currentUser.getUserId()) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Không có quyền xóa bình luận này");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    boolean ok = commentDAO.delete(commentId);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    result.put("message", ok ? "Đã xóa bình luận" : "Xóa thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
+                // ===== REPORTS UPDATE =====
+                case "/reports/update" -> {
+                    if (currentUser == null || (!"MODERATOR".equals(currentUser.getRole()) && !"ADMIN".equals(currentUser.getRole()))) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Không có quyền");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long reportId = Long.parseLong(req.getParameter("reportId"));
+                    String status = req.getParameter("status");
+                    boolean ok = reportDAO.updateStatus(reportId, status);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    result.put("message", ok ? "Đã cập nhật trạng thái" : "Cập nhật thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
+                // ===== DELETE REPORT =====
+                case "/reports/delete" -> {
+                    if (currentUser == null || (!"MODERATOR".equals(currentUser.getRole()) && !"ADMIN".equals(currentUser.getRole()))) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Không có quyền");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long reportId = Long.parseLong(req.getParameter("reportId"));
+                    boolean ok = reportDAO.deleteReport(reportId);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    result.put("message", ok ? "Đã xóa báo cáo" : "Xóa thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
+                // ===== SUPPORT =====
+                case "/support" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    String message = req.getParameter("message");
+                    if (message == null || message.trim().isEmpty()) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Nội dung không được để trống");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    boolean ok = reportDAO.insertSupportMessage(currentUser.getUserId(), message.trim());
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    result.put("message", ok ? "Đã gửi tin nhắn hỗ trợ" : "Gửi thất bại");
                     resp.getWriter().write(gson.toJson(result));
                 }
 

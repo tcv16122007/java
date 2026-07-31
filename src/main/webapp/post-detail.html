@@ -99,8 +99,6 @@
         let currentUser = null;
         let currentPostId = null;
         let currentPost = null;
-        let reportModal = null;
-        let editPostModal = null;
 
         function getPostId() {
             const params = new URLSearchParams(window.location.search);
@@ -158,6 +156,12 @@
             }
             currentPost = result;
 
+            if (currentUser && result.status === 'APPROVED') {
+                try {
+                    await callApi('POST', '/view-history', { postId: id });
+                } catch (e) { console.warn('View history error:', e); }
+            }
+
             const isMod = currentUser && (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN');
             const isAuthor = currentUser && currentUser.userId === result.authorId;
             const canView = result.status === 'APPROVED' || (isMod && result.status !== 'DELETED') || isAuthor;
@@ -170,7 +174,6 @@
 
             const renderedContent = renderContent(result.content);
 
-            // Xác định trạng thái hiển thị nút
             let actionButtons = '';
             if (isAuthor) {
                 actionButtons += `
@@ -194,6 +197,26 @@
                 `;
             }
 
+            let bookmarkHTML = '';
+            if (currentUser) {
+                try {
+                    const bmRes = await callApi('GET', `/bookmarks?postId=${currentPostId}`);
+                    const isBookmarked = bmRes.bookmarked || false;
+                    bookmarkHTML = `
+                        <button class="btn btn-sm btn-outline-primary" onclick="toggleBookmark()">
+                            <i class="bi ${isBookmarked ? 'bi-bookmark-fill' : 'bi-bookmark'}"></i>
+                            <span id="bookmarkText">${isBookmarked ? 'Đã lưu' : 'Lưu'}</span>
+                        </button>
+                    `;
+                } catch (e) {
+                    bookmarkHTML = `
+                        <button class="btn btn-sm btn-outline-primary" onclick="toggleBookmark()">
+                            <i class="bi bi-bookmark"></i> <span id="bookmarkText">Lưu</span>
+                        </button>
+                    `;
+                }
+            }
+
             document.getElementById('postContent').innerHTML = `
                 <div class="card p-4">
                     <h2 class="fw-bold">${result.title}</h2>
@@ -208,6 +231,7 @@
                         <button class="btn btn-outline-danger like-btn" onclick="toggleLike()">
                             <i class="bi bi-heart-fill"></i> Thích <span id="likeCount">${result.likeCount || 0}</span>
                         </button>
+                        ${bookmarkHTML}
                     </div>
                     <hr>
                     <h6>💬 Bình luận <span class="comment-count">(${result.commentCount || 0})</span></h6>
@@ -266,10 +290,8 @@
         function renderCommentTree(comment, level = 0) {
             const indent = level > 0 ? 'comment-reply' : '';
             const isMod = currentUser && (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN');
+            const isOwner = currentUser && currentUser.userId === comment.userId;
             const likeCount = comment.likeCount || 0;
-            const dislikeCount = comment.dislikeCount || 0;
-            const hasLiked = currentUser ? (comment.likedByCurrentUser || false) : false;
-            const hasDisliked = currentUser ? (comment.dislikedByCurrentUser || false) : false;
 
             let html = `
                 <div class="comment-box ${indent}" id="comment-${comment.commentId}">
@@ -281,7 +303,7 @@
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         ${currentUser ? `
                             <button class="btn btn-sm btn-outline-primary like-btn" onclick="toggleCommentLike(${comment.commentId})">
-                                <i class="bi ${hasLiked ? 'bi-heart-fill text-danger' : 'bi-heart'}"></i> <span id="comment-like-${comment.commentId}">${likeCount}</span>
+                                <i class="bi ${comment.likedByCurrentUser ? 'bi-heart-fill text-danger' : 'bi-heart'}"></i> <span id="comment-like-${comment.commentId}">${likeCount}</span>
                             </button>
                             <button class="btn btn-sm btn-outline-info" onclick="showReplyForm(${comment.commentId})">
                                 <i class="bi bi-reply"></i> Trả lời
@@ -290,11 +312,18 @@
                                 <i class="bi bi-flag"></i> Báo cáo
                             </button>
                         ` : ''}
-                        ${isMod ? `
-                            <button class="btn btn-sm btn-outline-warning" onclick="toggleCommentAdmin(${comment.commentId})">
-                                ${comment.status === 'VISIBLE' ? 'Ẩn' : 'Hiện'}
-                            </button>
+                        ${isOwner && comment.status === 'VISIBLE' ? `
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteMyComment(${comment.commentId})"><i class="bi bi-trash"></i> Xóa</button>
+                        ` : ''}
+                        ${isMod && comment.status === 'DELETED' ? `
+                            <button class="btn btn-sm btn-outline-success" onclick="restoreComment(${comment.commentId})"><i class="bi bi-arrow-counterclockwise"></i> Khôi phục</button>
+                        ` : ''}
+                        ${isMod && comment.status === 'VISIBLE' ? `
+                            <button class="btn btn-sm btn-outline-warning" onclick="toggleCommentAdmin(${comment.commentId})">Ẩn</button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteCommentAdmin(${comment.commentId})">Xóa</button>
+                        ` : ''}
+                        ${isMod && comment.status === 'HIDDEN' ? `
+                            <button class="btn btn-sm btn-outline-success" onclick="toggleCommentAdmin(${comment.commentId})">Hiện</button>
                         ` : ''}
                     </div>
                     <div id="reply-form-${comment.commentId}" style="display:none;" class="mt-2">
@@ -350,7 +379,6 @@
             const result = await callApi('POST', '/comment/like', { id: commentId });
             if (result.success) {
                 document.getElementById('comment-like-' + commentId).textContent = result.likeCount || 0;
-                document.getElementById('comment-dislike-' + commentId).textContent = result.dislikeCount || 0;
                 const btn = document.querySelector(`#comment-${commentId} .btn-outline-primary i`);
                 if (btn) btn.className = 'bi bi-heart-fill text-danger';
                 showToast('Đã thích', 'success');
@@ -377,25 +405,22 @@
             }
         }
 
-        async function toggleCommentAdmin(commentId) {
-            const btn = document.querySelector(`button[onclick="toggleCommentAdmin(${commentId})"]`);
-            if (!btn) return;
-            const isVisible = btn.textContent.trim() === 'Ẩn';
-            const result = await callApi('POST', '/comments', { action: 'toggle', id: commentId });
-            if (result.success) {
-                showToast(isVisible ? 'Đã ẩn bình luận' : 'Đã hiện bình luận', 'success');
-                await loadComments(currentPostId);
-            } else {
-                showToast(result.message || 'Lỗi', 'danger');
+        async function toggleBookmark() {
+            if (!currentUser) {
+                showToast('Vui lòng đăng nhập', 'warning');
+                return;
             }
-        }
-
-        async function deleteCommentAdmin(commentId) {
-            if (!confirm('Xóa bình luận này?')) return;
-            const result = await callApi('POST', '/comments', { action: 'delete', id: commentId });
+            const result = await callApi('POST', '/bookmark/toggle', { postId: currentPostId });
             if (result.success) {
-                showToast('Đã xóa bình luận', 'success');
-                await loadComments(currentPostId);
+                const icon = document.querySelector('#bookmarkText');
+                if (result.bookmarked) {
+                    document.querySelector('.btn-outline-primary i').className = 'bi bi-bookmark-fill';
+                    icon.textContent = 'Đã lưu';
+                } else {
+                    document.querySelector('.btn-outline-primary i').className = 'bi bi-bookmark';
+                    icon.textContent = 'Lưu';
+                }
+                showToast(result.message, 'success');
             } else {
                 showToast(result.message || 'Lỗi', 'danger');
             }
@@ -461,7 +486,6 @@
             document.getElementById('editTitle').value = currentPost.title;
             document.getElementById('editSummary').value = currentPost.summary || '';
             document.getElementById('editContent').value = currentPost.content;
-            // Load categories
             const cats = await callApi('GET', '/categories');
             const sel = document.getElementById('editCategory');
             if (cats) {
@@ -484,13 +508,7 @@
                 showToast('Vui lòng nhập đủ tiêu đề và nội dung', 'danger');
                 return;
             }
-            const data = {
-                postId,
-                title,
-                content,
-                summary,
-                categoryId
-            };
+            const data = { postId, title, content, summary, categoryId };
             const result = await callApi('POST', '/posts/update', data);
             if (result.success) {
                 showToast('Cập nhật thành công', 'success');
@@ -500,6 +518,52 @@
                 showToast(result.message || 'Lỗi cập nhật', 'danger');
             }
         });
+
+        // ---- Xóa bình luận của chính mình ----
+        async function deleteMyComment(commentId) {
+            if (!confirm('Xóa bình luận của bạn?')) return;
+            const result = await callApi('POST', '/comments/delete-by-user', { commentId });
+            if (result.success) {
+                showToast('Đã xóa bình luận', 'success');
+                await loadComments(currentPostId);
+            } else {
+                showToast(result.message || 'Lỗi', 'danger');
+            }
+        }
+
+        // ---- Khôi phục bình luận (Mod/Admin) ----
+        async function restoreComment(commentId) {
+            if (!confirm('Khôi phục bình luận này?')) return;
+            const result = await callApi('POST', '/comments/restore', { commentId });
+            if (result.success) {
+                showToast('Đã khôi phục', 'success');
+                await loadComments(currentPostId);
+            } else {
+                showToast(result.message || 'Lỗi', 'danger');
+            }
+        }
+
+        // ---- Mod/Admin toggle comment status ----
+        async function toggleCommentAdmin(commentId) {
+            const result = await callApi('POST', '/comments', { action: 'toggle', id: commentId });
+            if (result.success) {
+                showToast('Đã cập nhật', 'success');
+                await loadComments(currentPostId);
+            } else {
+                showToast(result.message || 'Lỗi', 'danger');
+            }
+        }
+
+        async function deleteCommentAdmin(commentId) {
+            if (!confirm('Xóa bình luận này?')) return;
+            const result = await callApi('POST', '/comments', { action: 'delete', id: commentId });
+            if (result.success) {
+                showToast('Đã xóa', 'success');
+                await loadComments(currentPostId);
+            } else {
+                showToast(result.message || 'Lỗi', 'danger');
+            }
+        }
 
         async function logout() {
             await callApi('POST', '/logout');

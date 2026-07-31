@@ -116,6 +116,29 @@ public class CommentDAO {
         return null;
     }
 
+    // ==== Tìm comment theo người dùng (lịch sử bình luận) ====
+    public List<Comment> findByUser(long userId) {
+        List<Comment> list = new ArrayList<>();
+        String sql = "SELECT c.*, u.username, p.title as postTitle FROM Comment c " +
+                     "LEFT JOIN [User] u ON c.user_id = u.user_id " +
+                     "LEFT JOIN Post p ON c.post_id = p.post_id " +
+                     "WHERE c.user_id = ? " +
+                     "ORDER BY c.created_at DESC";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                Comment c = mapRow(rs);
+                c.setPostTitle(rs.getString("postTitle"));
+                list.add(c);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Find comments by user error", e);
+        }
+        return list;
+    }
+
     // ==== Thêm comment gốc (không có parent) ====
     public boolean insert(Comment comment) {
         String sql = "INSERT INTO Comment (content, user_id, post_id) VALUES (?, ?, ?)";

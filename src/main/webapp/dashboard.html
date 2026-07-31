@@ -56,6 +56,31 @@
                         <a class="nav-link" href="#" onclick="loadSection('users')"><i class="bi bi-people"></i> Người
                             dùng</a>
                     </li>
+                    <li class="nav-item" id="bookmarkMenu" style="display:none;">
+                        <a class="nav-link" href="#" onclick="loadSection('bookmarks')"><i class="bi bi-bookmark"></i>
+                            Bài viết đã lưu</a>
+                    </li>
+                    <li class="nav-item" id="historyPostsMenu" style="display:none;">
+                        <a class="nav-link" href="#" onclick="loadSection('history-posts')"><i
+                                class="bi bi-clock-history"></i> Lịch sử bài viết</a>
+                    </li>
+                    <li class="nav-item" id="historyCommentsMenu" style="display:none;">
+                        <a class="nav-link" href="#" onclick="loadSection('history-comments')"><i
+                                class="bi bi-chat-dots"></i> Lịch sử bình luận</a>
+                    </li>
+                    <li class="nav-item" id="historyInteractionsMenu" style="display:none;">
+                        <a class="nav-link" href="#" onclick="loadSection('history-interactions')"><i
+                                class="bi bi-activity"></i> Lịch sử tương tác</a>
+                    </li>
+                    <li class="nav-item" id="reportMenu" style="display:none;">
+                        <a class="nav-link" href="#" onclick="loadSection('reports')"><i class="bi bi-flag"></i> Báo
+                            cáo</a>
+                    </li>
+                    <!-- Hỗ trợ - chỉ hiển thị với User -->
+                    <li class="nav-item" id="supportMenu" style="display:none;">
+                        <a class="nav-link" href="#" onclick="loadSection('support')"><i class="bi bi-headset"></i> Hỗ
+                            trợ</a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="profile.html"><i class="bi bi-person-gear"></i> Cá nhân</a>
                     </li>
@@ -82,9 +107,18 @@
             if (res.success) {
                 currentUser = res.user;
                 updateUI(currentUser);
+                // Menu permissions
                 document.getElementById('writeMenu').style.display = currentUser.role === 'USER' ? 'block' : 'none';
                 document.getElementById('modMenu').style.display = (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN') ? 'block' : 'none';
                 document.getElementById('adminMenu').style.display = currentUser.role === 'ADMIN' ? 'block' : 'none';
+                document.getElementById('bookmarkMenu').style.display = 'block';
+                document.getElementById('historyPostsMenu').style.display = 'block';
+                document.getElementById('historyCommentsMenu').style.display = 'block';
+                document.getElementById('historyInteractionsMenu').style.display = (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN') ? 'block' : 'none';
+                document.getElementById('reportMenu').style.display = (currentUser.role === 'MODERATOR' || currentUser.role === 'ADMIN') ? 'block' : 'none';
+                // Support chỉ hiển thị với USER
+                document.getElementById('supportMenu').style.display = currentUser.role === 'USER' ? 'block' : 'none';
+
                 loadSection('posts');
             } else {
                 window.location.href = 'login.html';
@@ -161,6 +195,57 @@
                         <div id="userList" class="table-responsive"></div>`;
                     await loadUsers();
                     break;
+                case 'bookmarks':
+                    content.innerHTML = `
+                        <h4><i class="bi bi-bookmark"></i> Bài viết đã lưu</h4>
+                        <div id="bookmarkList" class="row g-4"></div>`;
+                    await loadBookmarks();
+                    break;
+                case 'history-posts':
+                    content.innerHTML = `
+                        <h4><i class="bi bi-clock-history"></i> Lịch sử bài viết</h4>
+                        <div id="historyPostList" class="table-responsive"></div>`;
+                    await loadHistoryPosts();
+                    break;
+                case 'history-comments':
+                    content.innerHTML = `
+                        <h4><i class="bi bi-chat-dots"></i> Lịch sử bình luận</h4>
+                        <div id="historyCommentList" class="table-responsive"></div>`;
+                    await loadHistoryComments();
+                    break;
+                case 'history-interactions':
+                    content.innerHTML = `
+                        <h4><i class="bi bi-activity"></i> Lịch sử tương tác</h4>
+                        <div class="mb-2">
+                            <label>Chọn user:</label>
+                            <select id="interactionUserSelect" class="form-select" style="max-width:300px;" onchange="loadHistoryInteractions()"></select>
+                        </div>
+                        <div id="historyInteractionList" class="table-responsive"></div>`;
+                    await loadUsersForInteractionSelect();
+                    break;
+                case 'reports':
+                    content.innerHTML = `
+                        <h4><i class="bi bi-flag"></i> Quản lý báo cáo</h4>
+                        <div id="reportList" class="table-responsive"></div>`;
+                    await loadReports();
+                    break;
+                // ===== SUPPORT (chỉ User) =====
+                case 'support':
+                    content.innerHTML = `
+                        <h4><i class="bi bi-headset"></i> Hỗ trợ</h4>
+                        <div class="card p-4">
+                            <p class="text-muted">Gửi tin nhắn đến Quản trị viên / Kiểm duyệt viên để được hỗ trợ.</p>
+                            <form id="supportForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Nội dung</label>
+                                    <textarea id="supportMessage" class="form-control" rows="5" placeholder="Nhập tin nhắn của bạn..." required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Gửi</button>
+                            </form>
+                            <div id="supportStatus" class="mt-3"></div>
+                        </div>`;
+                    document.getElementById('supportForm').addEventListener('submit', submitSupport);
+                    break;
             }
         }
 
@@ -187,8 +272,7 @@
                     </tr>
                 `).join('');
             } catch (e) {
-                document.getElementById('myPostsBody').innerHTML = '<tr><td colspan="5" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>';
-                console.error('loadMyPosts error:', e);
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Lỗi tải dữ liệu</td></tr>';
             }
         }
 
@@ -204,7 +288,6 @@
                 }
             } catch (e) {
                 showToast('Lỗi kết nối', 'danger');
-                console.error('deletePost error:', e);
             }
         }
 
@@ -219,7 +302,6 @@
                 }
             } catch (e) {
                 showToast('Lỗi kết nối', 'danger');
-                console.error('resubmitPost error:', e);
             }
         }
 
@@ -255,7 +337,6 @@
                 }
             } catch (e) {
                 showToast('Lỗi kết nối', 'danger');
-                console.error('submitPost error:', e);
             }
         }
 
@@ -285,7 +366,6 @@
                 </tbody></table>`;
             } catch (e) {
                 document.getElementById('categoryList').innerHTML = '<p class="text-danger">Lỗi tải danh mục</p>';
-                console.error('loadCategories error:', e);
             }
         }
 
@@ -306,7 +386,6 @@
                 }
             } catch (e) {
                 showToast('Lỗi kết nối', 'danger');
-                console.error('addCategory error:', e);
             }
         }
 
@@ -326,7 +405,6 @@
                 })
                 .catch(e => {
                     showToast('Lỗi kết nối', 'danger');
-                    console.error('editCategory error:', e);
                 });
         }
 
@@ -342,15 +420,14 @@
                 }
             } catch (e) {
                 showToast('Lỗi kết nối', 'danger');
-                console.error('deleteCategory error:', e);
             }
         }
 
-        // ---- All Comments ----
+        // ---- All Comments (Admin/Mod) ----
         async function loadAllComments() {
+            const tbody = document.getElementById('commentListBody');
             try {
                 const comments = await callApi('GET', '/comments?action=all');
-                const tbody = document.getElementById('commentListBody');
                 if (!comments || comments.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Chưa có bình luận</td></tr>';
                     return;
@@ -371,8 +448,7 @@
                     </tr>
                 `).join('');
             } catch (e) {
-                document.getElementById('commentListBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Lỗi tải dữ liệu</td></tr>';
-                console.error('loadAllComments error:', e);
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Chưa có bình luận</td></tr>';
             }
         }
 
@@ -387,7 +463,6 @@
                 }
             } catch (e) {
                 showToast('Lỗi kết nối', 'danger');
-                console.error('toggleCommentAdmin error:', e);
             }
         }
 
@@ -403,7 +478,6 @@
                 }
             } catch (e) {
                 showToast('Lỗi kết nối', 'danger');
-                console.error('deleteCommentAdmin error:', e);
             }
         }
 
@@ -431,7 +505,6 @@
                 `).join('');
             } catch (e) {
                 container.innerHTML = `<p class="text-danger">Lỗi tải danh sách chờ duyệt: ${e.message}</p>`;
-                console.error('loadPendingPosts error:', e);
             }
         }
 
@@ -445,20 +518,16 @@
                 const result = await callApi('POST', '/posts', { action: 'approve', id });
                 if (result.success) {
                     showToast('✅ Đã duyệt bài', 'success');
-                    // Tải lại danh sách (không hiển thị lỗi nếu tải lại thất bại)
                     try {
                         await loadPendingPosts();
                         await loadMyPosts();
-                    } catch (e) {
-                        console.warn('Reload list error:', e);
-                    }
+                    } catch (e) { console.warn('Reload list error:', e); }
                 } else {
                     const msg = result.message || result.error || 'Lỗi duyệt bài';
                     showToast('❌ ' + msg, 'danger');
                 }
             } catch (e) {
                 showToast('Lỗi kết nối server', 'danger');
-                console.error('approvePost error:', e);
             }
         }
 
@@ -472,16 +541,13 @@
                     try {
                         await loadPendingPosts();
                         await loadMyPosts();
-                    } catch (e) {
-                        console.warn('Reload list error:', e);
-                    }
+                    } catch (e) { console.warn('Reload list error:', e); }
                 } else {
                     const msg = result.message || result.error || 'Lỗi từ chối bài';
                     showToast('❌ ' + msg, 'danger');
                 }
             } catch (e) {
                 showToast('Lỗi kết nối server', 'danger');
-                console.error('rejectPost error:', e);
             }
         }
 
@@ -519,7 +585,6 @@
                 </tbody></table>`;
             } catch (e) {
                 document.getElementById('userList').innerHTML = '<p class="text-danger">Lỗi tải danh sách user</p>';
-                console.error('loadUsers error:', e);
             }
         }
 
@@ -537,7 +602,6 @@
                 }
             } catch (e) {
                 showToast('Lỗi kết nối', 'danger');
-                console.error('toggleUser error:', e);
             }
         }
 
@@ -553,7 +617,220 @@
                 }
             } catch (e) {
                 showToast('Lỗi kết nối', 'danger');
-                console.error('changeRole error:', e);
+            }
+        }
+
+        // ---- Bookmark ----
+        async function loadBookmarks() {
+            const container = document.getElementById('bookmarkList');
+            try {
+                const posts = await callApi('GET', '/bookmarks?action=list');
+                if (!posts || posts.length === 0) {
+                    container.innerHTML = '<p class="text-muted">Chưa có bài viết nào được lưu.</p>';
+                    return;
+                }
+                container.innerHTML = posts.map(p => `
+                    <div class="col-md-4">
+                        <a href="post-detail.html?id=${p.postId}" class="text-decoration-none text-dark">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <span class="badge bg-primary badge-custom">${p.categoryName || 'Chung'}</span>
+                                    <h5 class="card-title mt-2">${p.title}</h5>
+                                    <p class="card-text text-muted small">${p.summary || ''}</p>
+                                    <div class="d-flex justify-content-between align-items-center mt-3">
+                                        <div class="post-meta">
+                                            <span class="me-2">❤️ ${p.likeCount || 0}</span>
+                                            <span>💬 ${p.commentCount || 0}</span>
+                                            <span class="ms-2"><i class="bi bi-eye"></i> ${p.viewCount || 0}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent text-muted small">
+                                    <i class="bi bi-person"></i> ${p.authorName} | ${formatDate(p.createdAt)}
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = '<p class="text-danger">Lỗi tải dữ liệu</p>';
+            }
+        }
+
+        // ---- History Posts ----
+        async function loadHistoryPosts() {
+            const container = document.getElementById('historyPostList');
+            try {
+                const data = await callApi('GET', '/history/posts');
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<p class="text-muted">Chưa có lịch sử xem bài viết.</p>';
+                    return;
+                }
+                container.innerHTML = `<table class="table table-hover"><thead><tr><th>Tiêu đề</th><th>Ngày xem</th></tr></thead><tbody>
+                    ${data.map(item => `<tr><td><a href="post-detail.html?id=${item.postId}">${item.title}</a></td><td>${formatDate(item.viewedAt)}</td></tr>`).join('')}
+                </tbody></table>`;
+            } catch (e) {
+                container.innerHTML = '<p class="text-muted">Chưa có lịch sử xem bài viết.</p>';
+            }
+        }
+
+        // ---- History Comments ----
+        async function loadHistoryComments() {
+            const container = document.getElementById('historyCommentList');
+            try {
+                const comments = await callApi('GET', '/history/comments');
+                if (!comments || comments.length === 0) {
+                    container.innerHTML = '<p class="text-muted">Chưa có bình luận nào.</p>';
+                    return;
+                }
+                container.innerHTML = `<table class="table table-hover"><thead><tr><th>Bài viết</th><th>Nội dung</th><th>Ngày</th></tr></thead><tbody>
+                    ${comments.map(c => `<tr><td><a href="post-detail.html?id=${c.postId}">${c.postTitle}</a></td><td>${c.content}</td><td>${formatDate(c.createdAt)}</td></tr>`).join('')}
+                </tbody></table>`;
+            } catch (e) {
+                container.innerHTML = '<p class="text-muted">Chưa có bình luận nào.</p>';
+            }
+        }
+
+        // ---- History Interactions ----
+        async function loadUsersForInteractionSelect() {
+            try {
+                const users = await callApi('GET', '/users?action=list');
+                const sel = document.getElementById('interactionUserSelect');
+                if (users) {
+                    sel.innerHTML = users.map(u => `<option value="${u.userId}">${u.username}</option>`).join('');
+                    loadHistoryInteractions();
+                }
+            } catch (e) {
+                console.error('loadUsersForInteractionSelect error:', e);
+            }
+        }
+
+        async function loadHistoryInteractions() {
+            const userId = document.getElementById('interactionUserSelect').value;
+            if (!userId) return;
+            const container = document.getElementById('historyInteractionList');
+            try {
+                const data = await callApi('GET', `/history/interactions?userId=${userId}`);
+                if (!data || data.length === 0) {
+                    container.innerHTML = '<p class="text-muted">Chưa có tương tác.</p>';
+                    return;
+                }
+                container.innerHTML = `<table class="table table-hover"><thead><tr><th>Loại</th><th>Nội dung</th><th>Hành động</th><th>Thời gian</th></tr></thead><tbody>
+                    ${data.map(item => `<tr>
+                        <td>${item.type === 'post' ? 'Bài viết' : 'Bình luận'}</td>
+                        <td>${item.titleOrContent}</td>
+                        <td>${item.action}</td>
+                        <td>${formatDate(item.createdAt)}</td>
+                    </tr>`).join('')}
+                </tbody></table>`;
+            } catch (e) {
+                container.innerHTML = '<p class="text-muted">Chưa có tương tác.</p>';
+            }
+        }
+
+        // ---- Reports ----
+        async function loadReports() {
+            const container = document.getElementById('reportList');
+            try {
+                const reports = await callApi('GET', '/reports');
+                if (!reports || reports.length === 0) {
+                    container.innerHTML = '<p class="text-muted">Chưa có báo cáo nào.</p>';
+                    return;
+                }
+                container.innerHTML = `<table class="table table-hover">
+                    <thead><tr><th>ID</th><th>Người báo cáo</th><th>Nội dung</th><th>Lý do</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+                    <tbody>
+                    ${reports.map(r => `
+                        <tr>
+                            <td>${r.reportId}</td>
+                            <td>${r.reporterName}</td>
+                            <td>
+                                ${r.postTitle ? `<a href="post-detail.html?id=${r.postId}">${r.postTitle}</a>` : ''}
+                                ${r.commentContent ? `Bình luận: "${r.commentContent}" - ${r.commentAuthor}` : ''}
+                            </td>
+                            <td>${r.reason}</td>
+                            <td>${getStatusBadge(r.status)}</td>
+                            <td>
+                                ${r.commentId ? `
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCommentFromReport(${r.commentId})">Xóa bình luận</button>
+                                    <button class="btn btn-sm btn-outline-success" onclick="restoreCommentFromReport(${r.commentId})">Khôi phục</button>
+                                ` : ''}
+                                <button class="btn btn-sm btn-outline-secondary" onclick="resolveReport(${r.reportId})">Đã xử lý</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                    </tbody></table>`;
+            } catch (e) {
+                container.innerHTML = '<p class="text-muted">Chưa có báo cáo nào.</p>';
+            }
+        }
+
+        async function deleteCommentFromReport(commentId) {
+            if (!confirm('Xóa bình luận này (ẩn khỏi mọi người)?')) return;
+            try {
+                const result = await callApi('POST', '/comments', { action: 'delete', id: commentId });
+                if (result.success) {
+                    showToast('Đã xóa bình luận', 'success');
+                    loadReports();
+                } else {
+                    showToast(result.message || 'Lỗi', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+            }
+        }
+
+        async function restoreCommentFromReport(commentId) {
+            if (!confirm('Khôi phục bình luận này?')) return;
+            try {
+                const result = await callApi('POST', '/comments/restore', { commentId });
+                if (result.success) {
+                    showToast('Đã khôi phục bình luận', 'success');
+                    loadReports();
+                } else {
+                    showToast(result.message || 'Lỗi', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+            }
+        }
+
+        async function resolveReport(reportId) {
+            if (!confirm('Đánh dấu báo cáo này đã xử lý?')) return;
+            try {
+                const result = await callApi('POST', '/reports/update', { reportId, status: 'RESOLVED' });
+                if (result.success) {
+                    showToast('Đã cập nhật trạng thái', 'success');
+                    loadReports();
+                } else {
+                    showToast(result.message || 'Lỗi', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+            }
+        }
+
+        // ===== SUPPORT (chỉ User) =====
+        async function submitSupport(e) {
+            e.preventDefault();
+            const message = document.getElementById('supportMessage').value.trim();
+            if (!message) {
+                showToast('Vui lòng nhập nội dung', 'danger');
+                return;
+            }
+            try {
+                const result = await callApi('POST', '/support', { message });
+                if (result.success) {
+                    showToast('✅ Đã gửi tin nhắn hỗ trợ', 'success');
+                    document.getElementById('supportMessage').value = '';
+                    document.getElementById('supportStatus').innerHTML = `
+                        <div class="alert alert-success">Tin nhắn của bạn đã được gửi. Admin/Mod sẽ phản hồi sớm nhất.</div>
+                    `;
+                } else {
+                    showToast(result.message || 'Lỗi gửi', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
             }
         }
 

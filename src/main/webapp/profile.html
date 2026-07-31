@@ -79,7 +79,6 @@
                         <button class="btn btn-sm btn-primary mt-1" onclick="saveCustomCss()"><i class="bi bi-save"></i>
                             Lưu CSS</button>
                     </div>
-                    <!-- Preview -->
                     <div class="mt-3 p-2 border rounded" style="background: var(--bg-body); color: var(--text-color);">
                         <small><i class="bi bi-eye"></i> Xem trước: Nền này, chữ này.</small>
                     </div>
@@ -156,7 +155,6 @@
 
         function applySettings(settings) {
             const root = document.documentElement;
-            // Chỉ set màu nền body, text và primary, không ảnh hưởng card/input
             root.style.setProperty('--primary-color', settings.primaryColor || '#667eea');
             root.style.setProperty('--bg-body', settings.backgroundColor || '#f4f6f9');
             root.style.setProperty('--text-color', settings.textColor || '#1a1a2e');

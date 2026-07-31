@@ -27,9 +27,35 @@
                     onclick="window.location.href='register.html'">Đăng ký</a>
                 <a href="#" id="logoutBtn" class="btn btn-danger d-none" onclick="logout()">Đăng xuất</a>
                 <a href="dashboard.html" id="dashboardBtn" class="btn btn-light ms-2 d-none">Dashboard</a>
+                <a href="#" id="bookmarkBtn" class="btn btn-outline-light ms-2 d-none" onclick="loadBookmarks()"><i
+                        class="bi bi-bookmark"></i> Bài đã lưu</a>
+                <a href="#" id="supportBtn" class="btn btn-outline-light ms-2 d-none" data-bs-toggle="modal"
+                    data-bs-target="#supportModal"><i class="bi bi-headset"></i> Hỗ trợ</a>
             </div>
         </div>
     </nav>
+
+    <!-- Modal Hỗ trợ -->
+    <div class="modal fade" id="supportModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">💬 Hỗ trợ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="supportForm">
+                        <div class="mb-3">
+                            <label class="form-label">Nội dung</label>
+                            <textarea id="supportMessage" class="form-control" rows="4" placeholder="Nhập tin nhắn..."
+                                required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Gửi</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Hero -->
     <section class="hero text-center">
@@ -151,7 +177,6 @@
                     `).join('');
                 }
 
-                // Phân trang
                 const pagination = document.getElementById('paginationContainer');
                 if (totalPages > 1) {
                     let html = '<ul class="pagination">';
@@ -167,6 +192,39 @@
                 }
             } catch (err) {
                 document.getElementById('postList').innerHTML = '<div class="col-12 text-center text-danger">Lỗi tải dữ liệu</div>';
+            }
+        }
+
+        async function loadBookmarks() {
+            const posts = await callApi('GET', '/bookmarks?action=list');
+            const container = document.getElementById('postList');
+            document.getElementById('paginationContainer').innerHTML = '';
+            if (!posts || posts.length === 0) {
+                container.innerHTML = '<div class="col-12 text-center text-muted">Chưa có bài viết nào được lưu.</div>';
+            } else {
+                container.innerHTML = posts.map(p => `
+                    <div class="col-md-4">
+                        <a href="post-detail.html?id=${p.postId}" class="text-decoration-none text-dark">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <span class="badge bg-primary badge-custom">${p.categoryName || 'Chung'}</span>
+                                    <h5 class="card-title mt-2">${p.title}</h5>
+                                    <p class="card-text text-muted small">${p.summary || ''}</p>
+                                    <div class="d-flex justify-content-between align-items-center mt-3">
+                                        <div class="post-meta">
+                                            <span class="me-2">❤️ ${p.likeCount || 0}</span>
+                                            <span>💬 ${p.commentCount || 0}</span>
+                                            <span class="ms-2"><i class="bi bi-eye"></i> ${p.viewCount || 0}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent text-muted small">
+                                    <i class="bi bi-person"></i> ${p.authorName} | ${formatDate(p.createdAt)}
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                `).join('');
             }
         }
 
@@ -190,6 +248,28 @@
                 });
             } catch (e) { console.warn('Filter load error', e); }
         }
+
+        // ---- Hỗ trợ ----
+        document.getElementById('supportForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const message = document.getElementById('supportMessage').value.trim();
+            if (!message) {
+                showToast('Vui lòng nhập nội dung', 'danger');
+                return;
+            }
+            try {
+                const result = await callApi('POST', '/support', { message });
+                if (result.success) {
+                    showToast('Đã gửi tin nhắn hỗ trợ', 'success');
+                    document.getElementById('supportMessage').value = '';
+                    bootstrap.Modal.getInstance(document.getElementById('supportModal')).hide();
+                } else {
+                    showToast(result.message || 'Lỗi gửi', 'danger');
+                }
+            } catch (e) {
+                showToast('Lỗi kết nối', 'danger');
+            }
+        });
 
         async function logout() {
             await callApi('POST', '/logout');
