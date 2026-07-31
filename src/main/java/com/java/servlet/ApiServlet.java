@@ -1,5 +1,6 @@
 package com.java.servlet;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -36,9 +37,10 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.Part;
 
 @WebServlet("/api/*")
-@MultipartConfig(maxFileSize = 5 * 1024 * 1024)
+@MultipartConfig(maxFileSize = 10 * 1024 * 1024) // 10MB
 public class ApiServlet extends HttpServlet {
 
     private final Gson gson = new Gson();
@@ -219,7 +221,6 @@ public class ApiServlet extends HttpServlet {
                         resp.getWriter().write("{\"error\":\"Invalid action\"}");
                     }
                 }
-                // ===== NEW ENDPOINTS =====
                 case "/bookmarks" -> {
                     if (currentUser == null) {
                         Map<String, Object> err = new HashMap<>();
@@ -279,6 +280,16 @@ public class ApiServlet extends HttpServlet {
                     }
                     List<Map<String, Object>> reports = reportDAO.findAll();
                     resp.getWriter().write(gson.toJson(reports));
+                }
+                case "/support/messages" -> {
+                    if (currentUser == null || (!"MODERATOR".equals(currentUser.getRole()) && !"ADMIN".equals(currentUser.getRole()))) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Không có quyền");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    List<Map<String, Object>> messages = reportDAO.findSupportMessages();
+                    resp.getWriter().write(gson.toJson(messages));
                 }
                 default -> {
                     Map<String, Object> err = new HashMap<>();
@@ -473,7 +484,6 @@ public class ApiServlet extends HttpServlet {
                         return;
                     }
 
-                    // Chỉ action "add" cần role USER
                     if ("add".equals(action)) {
                         if (!"USER".equals(currentUser.getRole())) {
                             Map<String, Object> err = new HashMap<>();
@@ -985,6 +995,22 @@ public class ApiServlet extends HttpServlet {
                     resp.getWriter().write(gson.toJson(result));
                 }
 
+                // ===== SUPPORT RESOLVE =====
+                case "/support/resolve" -> {
+                    if (currentUser == null || (!"MODERATOR".equals(currentUser.getRole()) && !"ADMIN".equals(currentUser.getRole()))) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Không có quyền");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    long reportId = Long.parseLong(req.getParameter("reportId"));
+                    boolean ok = reportDAO.markSupportResolved(reportId);
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    result.put("message", ok ? "Đã đánh dấu đã xử lý" : "Cập nhật thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
                 // ===== SETTINGS =====
                 case "/settings" -> {
                     if (currentUser == null) {
@@ -1007,6 +1033,66 @@ public class ApiServlet extends HttpServlet {
                     Map<String, Object> result = new HashMap<>();
                     result.put("success", ok);
                     result.put("message", ok ? "Đã cập nhật cài đặt" : "Cập nhật thất bại");
+                    resp.getWriter().write(gson.toJson(result));
+                }
+
+                // ===== UPLOAD AVATAR =====
+                case "/upload-avatar" -> {
+                    if (currentUser == null) {
+                        Map<String, Object> err = new HashMap<>();
+                        err.put("error", "Chưa đăng nhập");
+                        resp.getWriter().write(gson.toJson(err));
+                        return;
+                    }
+                    Part filePart = req.getPart("avatar");
+                    if (filePart == null || filePart.getSize() == 0) {
+                        Map<String, Object> result = new HashMap<>();
+                        result.put("success", false);
+                        result.put("message", "Không có file được tải lên");
+                        resp.getWriter().write(gson.toJson(result));
+                        return;
+                    }
+
+                    // Lấy tên file gốc và extension
+                    String originalFileName = filePart.getSubmittedFileName();
+                    String extension = "";
+                    if (originalFileName != null && originalFileName.lastIndexOf(".") > 0) {
+                        extension = originalFileName.substring(originalFileName.lastIndexOf("."));
+                    }
+                    if (extension.isEmpty()) {
+                        extension = ".jpg"; // mặc định nếu không có extension
+                    }
+
+                    // Tạo tên file duy nhất
+                    String fileName = "avatar_" + currentUser.getUserId() + "_" + System.currentTimeMillis() + extension;
+
+                    // Đường dẫn thư mục uploads/avatars/
+                    String uploadPath = getServletContext().getRealPath("/uploads/avatars/");
+                    if (uploadPath == null) {
+                        uploadPath = getServletContext().getRealPath("/") + "uploads" + File.separator + "avatars" + File.separator;
+                    }
+                    if (!uploadPath.endsWith(File.separator)) {
+                        uploadPath += File.separator;
+                    }
+                    File uploadDir = new File(uploadPath);
+                    if (!uploadDir.exists()) {
+                        uploadDir.mkdirs();
+                    }
+                    String filePath = uploadPath + fileName;
+                    filePart.write(filePath);
+
+                    String avatarUrl = "/uploads/avatars/" + fileName;
+                    boolean ok = userDAO.updateAvatar(currentUser.getUserId(), avatarUrl);
+
+                    if (ok) {
+                        currentUser.setAvatar(avatarUrl);
+                        session.setAttribute("user", currentUser);
+                    }
+
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", ok);
+                    result.put("avatarUrl", avatarUrl);
+                    result.put("message", ok ? "Đã cập nhật ảnh đại diện" : "Cập nhật thất bại");
                     resp.getWriter().write(gson.toJson(result));
                 }
 

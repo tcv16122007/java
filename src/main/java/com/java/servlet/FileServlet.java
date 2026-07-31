@@ -23,10 +23,20 @@ public class FileServlet extends HttpServlet {
         String filePath = getServletContext().getRealPath("/uploads" + pathInfo);
         File file = new File(filePath);
         if (!file.exists()) {
+            String basePath = getServletContext().getRealPath("/");
+            if (basePath != null) {
+                String altPath = basePath + "uploads" + pathInfo;
+                File altFile = new File(altPath);
+                if (altFile.exists()) {
+                    file = altFile;
+                }
+            }
+        }
+        if (!file.exists()) {
             resp.sendError(404);
             return;
         }
-        String mimeType = getServletContext().getMimeType(filePath);
+        String mimeType = getServletContext().getMimeType(file.getAbsolutePath());
         if (mimeType == null) {
             String name = file.getName().toLowerCase();
             if (name.endsWith(".jpg") || name.endsWith(".jpeg")) mimeType = "image/jpeg";

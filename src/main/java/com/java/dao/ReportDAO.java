@@ -27,6 +27,18 @@ public class ReportDAO {
         }
     }
 
+    public boolean insertSupportMessage(long userId, String message) {
+        String sql = "INSERT INTO Report (reporter_id, post_id, comment_id, reason) VALUES (?, NULL, NULL, ?)";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, userId);
+            ps.setString(2, "Hỗ trợ: " + message);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Insert support message error", e);
+        }
+    }
+
     public List<Map<String, Object>> findAll() {
         List<Map<String, Object>> list = new ArrayList<>();
         String sql = "SELECT r.*, " +
@@ -89,16 +101,34 @@ public class ReportDAO {
         }
     }
 
-    // ==== Hỗ trợ: Lưu tin nhắn hỗ trợ từ người dùng ====
-    public boolean insertSupportMessage(long userId, String message) {
-        String sql = "INSERT INTO Report (reporter_id, post_id, comment_id, reason) VALUES (?, NULL, NULL, ?)";
+    // ===== SUPPORT MESSAGES =====
+    public List<Map<String, Object>> findSupportMessages() {
+        List<Map<String, Object>> list = new ArrayList<>();
+        String sql = "SELECT r.*, u.username as reporter_name " +
+                     "FROM Report r " +
+                     "LEFT JOIN [User] u ON r.reporter_id = u.user_id " +
+                     "WHERE r.post_id IS NULL AND r.comment_id IS NULL AND r.reason LIKE 'Hỗ trợ:%' " +
+                     "ORDER BY r.created_at DESC";
         try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, userId);
-            ps.setString(2, "Hỗ trợ: " + message);
-            return ps.executeUpdate() > 0;
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("reportId", rs.getLong("report_id"));
+                map.put("reporterId", rs.getLong("reporter_id"));
+                map.put("reporterName", rs.getString("reporter_name"));
+                map.put("reason", rs.getString("reason"));
+                map.put("status", rs.getString("status"));
+                map.put("createdAt", rs.getString("created_at"));
+                list.add(map);
+            }
         } catch (SQLException e) {
-            throw new RuntimeException("Insert support message error", e);
+            throw new RuntimeException("Find support messages error", e);
         }
+        return list;
+    }
+
+    public boolean markSupportResolved(long reportId) {
+        return updateStatus(reportId, "RESOLVED");
     }
 }
