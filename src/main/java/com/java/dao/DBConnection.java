@@ -7,7 +7,7 @@ import java.sql.SQLException;
 public class DBConnection {
     private static final String URL = "jdbc:sqlserver://localhost:1433;databaseName=BlogSE;encrypt=true;trustServerCertificate=true;useUnicode=true;characterEncoding=UTF-8;";
     private static final String USER = "sa";
-    private static final String PASSWORD = "161207";
+    private static final String PASSWORD = "16122007";
 
     public static Connection getConnection() throws SQLException {
         try {

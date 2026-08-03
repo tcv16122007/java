@@ -197,7 +197,20 @@ CREATE TABLE PasswordResetToken (
 );
 
 -- ====================================================
--- 15. DỮ LIỆU MẪU
+-- 15. BẢNG VIEW_HISTORY (lịch sử xem bài viết) - THÊM MỚI
+-- ====================================================
+CREATE TABLE ViewHistory (
+    history_id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    post_id BIGINT NOT NULL,
+    viewed_at DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (user_id) REFERENCES [User](user_id),
+    FOREIGN KEY (post_id) REFERENCES Post(post_id),
+    CONSTRAINT UQ_User_Post_View UNIQUE (user_id, post_id)
+);
+
+-- ====================================================
+-- 16. DỮ LIỆU MẪU
 -- ====================================================
 INSERT INTO [User] (full_name, username, email, password, role) VALUES
 (N'Quản trị viên', 'admin', 'admin@blog.com', 'admin123', 'ADMIN'),
