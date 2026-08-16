@@ -1,0 +1,142 @@
+.profile-layout {
+	display: grid;
+	grid-template-columns: 310px minmax(0, 1fr);
+	gap: 24px;
+	align-items: start;
+}
+.profile-avatar-large {
+	width: 132px;
+	height: 132px;
+	object-fit: cover;
+	border: 5px solid rgba(var(--primary-rgb), 0.18);
+}
+.color-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+.theme-preview {
+	min-height: 110px;
+	padding: 20px;
+	color: var(--text-color);
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-md);
+	background: linear-gradient(
+		135deg,
+		rgba(var(--primary-rgb), 0.16),
+		rgba(var(--secondary-rgb), 0.16)
+	);
+}
+.autofill-trap {
+	position: absolute;
+	left: -99999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	opacity: 0;
+}
+.password-field {
+	position: relative;
+}
+.password-toggle {
+	position: absolute;
+	right: 8px;
+	top: 50%;
+	transform: translateY(-50%);
+	border: 0;
+	color: var(--text-muted);
+	background: transparent;
+}
+@media (max-width: 991.98px) {
+	.profile-layout {
+		grid-template-columns: 1fr;
+	}
+}
+@media (max-width: 575.98px) {
+	.color-grid {
+		grid-template-columns: 1fr;
+	}
+}
+.page-heading .eyebrow {
+	display: inline-flex;
+	gap: 7px;
+	align-items: center;
+	margin-bottom: 8px;
+	color: var(--primary-color);
+	font-weight: 700;
+}
+.avatar-preview {
+	width: 100%;
+	max-height: 180px;
+	object-fit: cover;
+	border-radius: 12px;
+	border: 1px solid var(--border-color);
+}
+.color-field {
+	display: grid;
+	gap: 6px;
+	color: var(--text-muted);
+	font-size: 0.86rem;
+	font-weight: 600;
+}
+.color-field input {
+	width: 100%;
+	height: 44px;
+	padding: 4px;
+	border: 1px solid var(--border-color);
+	border-radius: 10px;
+	background: var(--bg-surface);
+}
+#themePreview {
+	color: var(--preview-text, var(--text-color));
+	background: linear-gradient(
+		135deg,
+		color-mix(
+			in srgb,
+			var(--preview-primary, #667eea) 18%,
+			var(--preview-background, #fff)
+		),
+		color-mix(
+			in srgb,
+			var(--preview-secondary, #764ba2) 18%,
+			var(--preview-background, #fff)
+		)
+	);
+}
+#themePreview .btn {
+	background: linear-gradient(
+		135deg,
+		var(--preview-primary, #667eea),
+		var(--preview-secondary, #764ba2)
+	);
+}
+.password-strength {
+	height: 7px;
+	overflow: hidden;
+	border-radius: 999px;
+	background: var(--bg-muted);
+}
+.password-strength span {
+	display: block;
+	height: 100%;
+	width: 0;
+	transition:
+		width 0.2s ease,
+		background 0.2s ease;
+}
+.password-strength .strength-1 {
+	width: 25%;
+	background: #dc3545;
+}
+.password-strength .strength-2 {
+	width: 50%;
+	background: #f59e0b;
+}
+.password-strength .strength-3 {
+	width: 75%;
+	background: #0ea5e9;
+}
+.password-strength .strength-4 {
+	width: 100%;
+	background: #198754;
+}

@@ -1,0 +1,62 @@
+.author-hero {
+	display: flex;
+	align-items: center;
+	gap: 24px;
+	padding: clamp(24px, 5vw, 48px);
+	background: linear-gradient(
+		135deg,
+		rgba(var(--primary-rgb), 0.14),
+		rgba(var(--secondary-rgb), 0.14)
+	);
+}
+.author-avatar {
+	width: 132px;
+	height: 132px;
+	flex: 0 0 auto;
+	object-fit: cover;
+	border: 5px solid var(--bg-surface);
+	border-radius: 50%;
+	box-shadow: var(--shadow-md);
+}
+.eyebrow {
+	color: var(--primary-color);
+	font-weight: 800;
+	text-transform: uppercase;
+	font-size: 0.78rem;
+	letter-spacing: 0.08em;
+}
+.author-stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 18px;
+}
+.author-stats div {
+	min-width: 88px;
+}
+.author-stats strong,
+.author-stats span {
+	display: block;
+}
+.author-stats strong {
+	font-size: 1.35rem;
+}
+.author-stats span {
+	color: var(--text-muted);
+	font-size: 0.8rem;
+}
+.author-sort {
+	width: min(220px, 100%);
+}
+@media (max-width: 767.98px) {
+	.author-hero {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+	.author-avatar {
+		width: 104px;
+		height: 104px;
+	}
+	.author-hero .ms-lg-auto {
+		width: 100%;
+	}
+}

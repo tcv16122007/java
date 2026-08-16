@@ -1,0 +1,118 @@
+.state-box {
+	display: grid;
+	place-items: center;
+	min-height: 220px;
+	padding: 28px;
+	text-align: center;
+	border: 1px dashed var(--border-color);
+	border-radius: var(--radius-md);
+	background: var(--bg-surface);
+}
+
+.state-icon {
+	font-size: 2.7rem;
+	color: var(--primary-color);
+}
+
+.skeleton {
+	position: relative;
+	overflow: hidden;
+	background: var(--bg-muted);
+}
+
+.skeleton::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	transform: translateX(-100%);
+	background: linear-gradient(
+		90deg,
+		transparent,
+		rgba(255, 255, 255, 0.42),
+		transparent
+	);
+	animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+	to {
+		transform: translateX(100%);
+	}
+}
+
+.app-toast-container {
+	position: fixed;
+	z-index: 13000;
+	top: 86px;
+	right: 18px;
+	display: grid;
+	gap: 10px;
+	width: min(380px, calc(100vw - 36px));
+}
+
+.app-toast {
+	position: relative;
+	display: grid;
+	grid-template-columns: 38px 1fr 28px;
+	gap: 10px;
+	align-items: start;
+	padding: 14px;
+	overflow: hidden;
+	border: 1px solid var(--border-color);
+	border-left: 4px solid var(--primary-color);
+	border-radius: var(--radius-sm);
+	background: var(--bg-surface);
+	box-shadow: var(--shadow-md);
+}
+
+.app-toast-danger {
+	border-left-color: var(--danger);
+}
+
+.app-toast-warning {
+	border-left-color: var(--warning);
+}
+
+.app-toast-info {
+	border-left-color: var(--info);
+}
+
+.app-toast-close {
+	border: 0;
+	color: var(--text-muted);
+	background: transparent;
+}
+
+.app-toast-progress {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	height: 3px;
+	width: 100%;
+	transform-origin: left;
+	background: var(--primary-color);
+	animation: toast-progress linear forwards;
+}
+
+@keyframes toast-progress {
+	to {
+		transform: scaleX(0);
+	}
+}
+
+.skeleton-label {
+	width: 35%;
+	height: 18px;
+}
+
+.skeleton-title {
+	height: 24px;
+}
+
+.skeleton-line {
+	height: 16px;
+}
+
+.skeleton-line-short {
+	width: 70%;
+}

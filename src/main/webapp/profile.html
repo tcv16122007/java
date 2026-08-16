@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Quản lý hồ sơ và giao diện cá nhân trên Blog SE.">
+    <title>Cá nhân - Blog SE</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/app.css?v=20260806">
+    <link rel="stylesheet" href="css/pages/profile.css?v=20260806">
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark app-navbar">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="index.html"><i class="bi bi-pencil-square"></i> Blog SE</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+                aria-label="Mở menu"><span class="navbar-toggler-icon"></span></button>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <div class="navbar-actions ms-auto" data-navbar-actions>
+                    <img class="nav-user-avatar d-none" data-user-avatar alt="Ảnh đại diện">
+                    <span class="text-white nav-user-name d-none" data-user-name></span>
+                    <button class="btn btn-outline-light theme-toggle" type="button" data-action="toggle-theme"
+                        aria-label="Đổi giao diện"><i class="bi bi-moon-stars"></i></button>
+                    <a class="btn btn-outline-light" href="dashboard.html">Dashboard</a>
+                    <button class="btn btn-danger" type="button" data-action="logout">Đăng xuất</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container py-4 main-content">
+        <div class="page-heading mb-4">
+            <span class="eyebrow"><i class="bi bi-person-gear"></i> Tài khoản</span>
+            <h1 class="h2 fw-bold mb-1">Hồ sơ cá nhân</h1>
+            <p class="text-muted mb-0">Cập nhật thông tin, ảnh đại diện, mật khẩu và bảng màu giao diện.</p>
+        </div>
+
+        <div class="profile-layout">
+            <aside class="d-grid gap-4">
+                <section class="app-card p-4 text-center">
+                    <img id="profileAvatar" class="profile-avatar-large rounded-circle mb-3" alt="Ảnh đại diện">
+                    <h2 id="profileName" class="h5 mb-1">Đang tải...</h2>
+                    <p id="profileMeta" class="text-muted small mb-3"></p>
+                    <form id="avatarForm" enctype="multipart/form-data" novalidate>
+                        <label for="avatarFile" class="form-label small fw-semibold">Ảnh JPG, PNG hoặc WebP · tối đa 5
+                            MB</label>
+                        <input id="avatarFile" class="form-control mb-2" type="file" name="avatar"
+                            accept="image/jpeg,image/png,image/webp">
+                        <img id="avatarPreview" class="avatar-preview d-none" alt="Xem trước ảnh đại diện">
+                        <button class="btn btn-outline-primary w-100 mt-2" type="submit"><i
+                                class="bi bi-cloud-arrow-up"></i> Cập nhật ảnh</button>
+                    </form>
+                </section>
+
+                <section class="app-card p-4">
+                    <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                        <div>
+                            <h2 class="h6 fw-bold mb-1"><i class="bi bi-palette"></i> Bảng màu</h2>
+                            <p class="small text-muted mb-0">Tùy chỉnh màu sắc và phông chữ theo sở thích của bạn.</p>
+                        </div>
+                        <button id="resetThemeButton" class="btn btn-sm btn-outline-secondary" type="button">Mặc
+                            định</button>
+                    </div>
+                    <form id="settingsForm">
+                        <div class="color-grid">
+                            <label class="color-field">Màu chính<input id="primaryColor" type="color"
+                                    value="#667eea"></label>
+                            <label class="color-field">Màu chính 2<input id="secondaryColor" type="color"
+                                    value="#764ba2"></label>
+                            <label class="color-field">Màu nền<input id="backgroundColor" type="color"
+                                    value="#f5f7fb"></label>
+                            <label class="color-field">Màu chữ<input id="textColor" type="color"
+                                    value="#172033"></label>
+                        </div>
+                        <label class="form-label mt-3" for="fontFamily">Phông chữ</label>
+                        <select id="fontFamily" class="form-select">
+                            <option value="system-ui">Mặc định hệ thống</option>
+                            <option value="Inter, sans-serif">Inter</option>
+                            <option value="Roboto, sans-serif">Roboto</option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="'Courier New', monospace">Courier New</option>
+                        </select>
+                        <label class="form-label mt-3" for="themeMode">Chế độ</label>
+                        <select id="themeMode" class="form-select">
+                            <option value="light">Sáng</option>
+                            <option value="dark">Tối</option>
+                        </select>
+                        <div id="themePreview" class="theme-preview mt-3">
+                            <strong>Xem trước giao diện</strong>
+                            <p class="small mb-2">Hai màu chính được dùng cho gradient và nút nổi bật.</p>
+                            <button class="btn btn-gradient btn-sm" type="button">Nút mẫu</button>
+                        </div>
+                        <button class="btn btn-primary w-100 mt-3" type="submit"><i class="bi bi-check2-circle"></i> Lưu
+                            giao diện</button>
+                    </form>
+                </section>
+            </aside>
+
+            <div class="d-grid gap-4">
+                <section class="app-card p-4 p-lg-5">
+                    <h2 class="h5 fw-bold"><i class="bi bi-person-vcard"></i> Thông tin tài khoản</h2>
+                    <p class="text-muted">Dữ liệu luôn được lấy từ phiên đăng nhập hiện tại, không dùng giá trị do trình
+                        duyệt tự điền.</p>
+                    <form id="profileForm" autocomplete="off" novalidate>
+                        <div class="autofill-trap" aria-hidden="true">
+                            <input type="text" name="fake_username" autocomplete="username" tabindex="-1">
+                            <input type="password" name="fake_password" autocomplete="new-password" tabindex="-1">
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="usernameDisplay">Tên đăng nhập</label>
+                                <input id="usernameDisplay" class="form-control" type="text" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="roleDisplay">Vai trò</label>
+                                <input id="roleDisplay" class="form-control" type="text" readonly>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="fullName">Họ và tên</label>
+                                <input id="fullName" class="form-control" name="profile_full_name" type="text"
+                                    maxlength="100" autocomplete="off" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="email">Email</label>
+                                <input id="email" class="form-control" name="profile_email" type="email" maxlength="100"
+                                    autocomplete="off" required>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary mt-4" type="submit"><i class="bi bi-save"></i> Lưu thông
+                            tin</button>
+                    </form>
+                </section>
+
+                <section class="app-card p-4 p-lg-5">
+                    <h2 class="h5 fw-bold"><i class="bi bi-shield-lock"></i> Đổi mật khẩu</h2>
+                    <p class="text-muted">Mật khẩu mới cần từ 8 đến 72 ký tự.</p>
+                    <form id="passwordForm" autocomplete="off" novalidate>
+                        <div class="autofill-trap" aria-hidden="true">
+                            <input type="text" autocomplete="username" tabindex="-1">
+                            <input type="password" autocomplete="new-password" tabindex="-1">
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label" for="oldPassword">Mật khẩu hiện tại</label>
+                                <div class="password-field"><input id="oldPassword" class="form-control pe-5"
+                                        name="profile_old_password" type="password" autocomplete="new-password"
+                                        data-lpignore="true" data-1p-ignore="true" readonly required><button
+                                        class="password-toggle" type="button" data-toggle-password="oldPassword"
+                                        aria-label="Hiện mật khẩu"><i class="bi bi-eye"></i></button></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="newPassword">Mật khẩu mới</label>
+                                <div class="password-field"><input id="newPassword" class="form-control pe-5"
+                                        name="profile_new_password" type="password" minlength="8" maxlength="72"
+                                        autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" readonly
+                                        required><button class="password-toggle" type="button"
+                                        data-toggle-password="newPassword" aria-label="Hiện mật khẩu"><i
+                                            class="bi bi-eye"></i></button></div>
+                                <div class="password-strength mt-2"><span id="passwordStrengthBar"></span></div>
+                                <small id="passwordStrengthText" class="text-muted">Chưa nhập mật khẩu mới.</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="confirmPassword">Nhập lại mật khẩu mới</label>
+                                <div class="password-field"><input id="confirmPassword" class="form-control pe-5"
+                                        name="profile_confirm_password" type="password" minlength="8" maxlength="72"
+                                        autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" readonly
+                                        required><button class="password-toggle" type="button"
+                                        data-toggle-password="confirmPassword" aria-label="Hiện mật khẩu"><i
+                                            class="bi bi-eye"></i></button></div>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-primary mt-4" type="submit"><i class="bi bi-key"></i> Đổi mật
+                            khẩu</button>
+                    </form>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/app.js?v=20260816-account-status"></script>
+    <script src="js/profile.js?v=20260807-2208"></script>
+</body>
+
+</html>

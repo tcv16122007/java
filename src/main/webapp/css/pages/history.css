@@ -1,0 +1,40 @@
+.history-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	justify-content: space-between;
+	align-items: center;
+}
+.history-card {
+	display: grid;
+	grid-template-columns: 210px 1fr auto;
+	gap: 18px;
+	padding: 16px;
+}
+.history-thumb {
+	width: 210px;
+	aspect-ratio: 16 / 10;
+	object-fit: cover;
+	border-radius: 12px;
+}
+@media (max-width: 767.98px) {
+	.history-card {
+		grid-template-columns: 1fr;
+	}
+	.history-thumb {
+		width: 100%;
+	}
+}
+.history-search {
+	width: min(300px, 100%);
+}
+.history-sort {
+	width: 150px;
+}
+@media (max-width: 575.98px) {
+	.history-toolbar > div:last-child,
+	.history-search,
+	.history-sort {
+		width: 100%;
+	}
+}

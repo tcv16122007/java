@@ -1,0 +1,124 @@
+.form-control,
+.form-select {
+	min-height: 44px;
+	color: var(--text-color);
+	background: var(--bg-surface);
+	border-color: var(--border-color);
+	border-radius: var(--radius-sm);
+}
+
+.form-control:focus,
+.form-select:focus {
+	color: var(--text-color);
+	background: var(--bg-surface);
+	border-color: var(--primary-color);
+	box-shadow: 0 0 0 0.23rem rgba(var(--primary-rgb), 0.18);
+}
+
+.form-control::placeholder {
+	color: var(--text-muted);
+}
+
+.btn-primary {
+	border-color: var(--primary-color);
+	background: var(--primary-color);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+	border-color: var(--secondary-color);
+	background: var(--secondary-color);
+}
+
+.btn-gradient {
+	color: #fff;
+	border: 0;
+	background: linear-gradient(
+		135deg,
+		var(--primary-color),
+		var(--secondary-color)
+	);
+}
+
+.btn-gradient:hover {
+	color: #fff;
+	filter: brightness(1.04);
+}
+
+.tag-picker {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.tag-check {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.tag-label {
+	cursor: pointer;
+	padding: 7px 12px;
+	border: 1px solid var(--border-color);
+	border-radius: 999px;
+	background: var(--bg-surface);
+	transition: all var(--transition);
+}
+
+.tag-check:checked + .tag-label {
+	color: #fff;
+	border-color: var(--primary-color);
+	background: var(--primary-color);
+}
+
+.editor-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 8px;
+	border: 1px solid var(--border-color);
+	border-bottom: 0;
+	border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+	background: var(--bg-muted);
+}
+
+.editor-textarea {
+	min-height: 340px;
+	border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.char-count {
+	color: var(--text-muted);
+	font-size: 0.78rem;
+	text-align: right;
+}
+
+.thumbnail-upload-status {
+	min-height: 1.25rem;
+}
+
+.thumbnail-preview-image {
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	object-fit: cover;
+	border: 1px solid var(--border-color);
+	background: var(--bg-muted);
+}
+
+.thumbnail-empty {
+	display: grid;
+	place-items: center;
+	gap: 0.35rem;
+	min-height: 150px;
+	padding: 1rem;
+	border: 1px dashed var(--border-color);
+	border-radius: var(--radius-sm);
+	background: var(--bg-muted);
+	text-align: center;
+}
+
+.thumbnail-empty .bi {
+	font-size: 2rem;
+}

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký - Blog SE</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="css/app.css?v=20260806">
+    <link rel="stylesheet" href="css/pages/auth.css?v=20260806">
+</head>
+
+<body class="auth-page">
+    <main class="auth-shell">
+        <a class="auth-brand" href="index.html"><i class="bi bi-pencil-square"></i> Blog SE</a>
+        <section class="auth-card app-card auth-card-wide">
+            <div class="auth-icon"><i class="bi bi-person-plus"></i></div>
+            <h1 class="h3 fw-bold text-center">Tạo tài khoản</h1>
+            <p class="text-muted text-center">Tham gia cộng đồng chia sẻ kiến thức Software Engineering.</p>
+            <div id="formMessage" class="alert d-none" role="alert"></div>
+            <form id="registerForm" autocomplete="off" novalidate>
+                <div class="row g-3">
+                    <div class="col-12"><label class="form-label" for="fullName">Họ và tên</label><input id="fullName"
+                            class="form-control" type="text" maxlength="100" autocomplete="name" required></div>
+                    <div class="col-md-6"><label class="form-label" for="username">Tên đăng nhập</label><input
+                            id="username" class="form-control" type="text" minlength="3" maxlength="50"
+                            autocomplete="username" required></div>
+                    <div class="col-md-6"><label class="form-label" for="email">Email</label><input id="email"
+                            class="form-control" type="email" maxlength="100" autocomplete="email" required></div>
+                    <div class="col-md-6"><label class="form-label" for="password">Mật khẩu</label>
+                        <div class="input-group"><input id="password" class="form-control" type="password" minlength="8"
+                                maxlength="72" autocomplete="new-password" required><button
+                                class="btn btn-outline-secondary" type="button" data-password-toggle="password"><i
+                                    class="bi bi-eye"></i></button></div>
+                        <div class="password-strength mt-2"><span id="strengthBar"></span></div><small id="strengthText"
+                            class="text-muted">Từ 8–72 ký tự.</small>
+                    </div>
+                    <div class="col-md-6"><label class="form-label" for="confirmPassword">Nhập lại mật khẩu</label>
+                        <div class="input-group"><input id="confirmPassword" class="form-control" type="password"
+                                minlength="8" maxlength="72" autocomplete="new-password" required><button
+                                class="btn btn-outline-secondary" type="button"
+                                data-password-toggle="confirmPassword"><i class="bi bi-eye"></i></button></div>
+                    </div>
+                </div>
+                <div class="form-check mt-3"><input id="terms" class="form-check-input" type="checkbox" required><label
+                        class="form-check-label" for="terms">Tôi đồng ý tuân thủ quy định cộng đồng.</label></div>
+                <button class="btn btn-gradient w-100 mt-3" type="submit">Đăng ký</button>
+            </form>
+            <p class="text-center mt-4 mb-0">Đã có tài khoản? <a href="login.html">Đăng nhập</a></p>
+        </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/app.js?v=20260816-account-status"></script>
+    <script src="js/register.js?v=20260806"></script>
+</body>
+
+</html>

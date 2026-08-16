@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Blog SE - Chia sẻ kiến thức Software Engineering, Java, cơ sở dữ liệu, frontend và kiểm thử.">
+    <title>Blog SE - Trang chủ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/app.css?v=20260806" rel="stylesheet">
+    <link href="css/pages/index.css?v=20260807-2208" rel="stylesheet">
+</head>
+
+<body>
+    <a class="visually-hidden-focusable btn btn-primary" href="#mainContent">Bỏ qua tới nội dung</a>
+
+    <nav class="navbar navbar-expand-lg navbar-dark app-navbar">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="index.html"><i class="bi bi-pencil-square"></i> Blog SE</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar"
+                aria-controls="mainNavbar" aria-expanded="false" aria-label="Mở menu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNavbar">
+                <ul class="navbar-nav me-auto ms-lg-4">
+                    <li class="nav-item"><a class="nav-link active" href="index.html">Trang chủ</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#latestPosts">Bài mới</a></li>
+                    <li class="nav-item"><a class="nav-link d-none" data-auth="user" data-role="USER"
+                            href="history.html">Đã xem</a></li>
+                </ul>
+                <div class="navbar-actions" data-navbar-actions>
+                    <img class="nav-user-avatar d-none" data-user-avatar alt="Ảnh đại diện">
+                    <span class="text-white nav-user-name d-none" data-user-name></span>
+                    <button class="btn btn-outline-light theme-toggle" type="button" data-action="toggle-theme"
+                        aria-label="Đổi giao diện"><i class="bi bi-moon-stars"></i></button>
+                    <a class="btn btn-outline-light" data-auth="guest" href="login.html">Đăng nhập</a>
+                    <a class="btn btn-light" data-auth="guest" href="register.html">Đăng ký</a>
+                    <a class="btn btn-outline-light d-none" data-auth="user" href="dashboard.html">Dashboard</a>
+                    <button class="btn btn-danger d-none" data-auth="user" data-action="logout" type="button">Đăng
+                        xuất</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <header class="home-hero text-center">
+        <div class="container position-relative">
+            <span class="badge rounded-pill text-bg-light text-primary mb-3">Cộng đồng Software Engineering</span>
+            <h1 class="hero-title fw-bold">Học hỏi, chia sẻ và xây dựng phần mềm tốt hơn.</h1>
+            <p class="lead mt-3 mb-0">Bài viết thực tế về Java, cơ sở dữ liệu, frontend, testing và quy trình phát
+                triển.</p>
+            <div class="hero-search">
+                <i class="bi bi-search hero-search-icon"></i>
+                <input class="form-control form-control-lg" id="heroSearchInput" type="search" autocomplete="off"
+                    placeholder="Tìm tiêu đề, tác giả, chủ đề hoặc tag..." aria-label="Tìm kiếm bài viết">
+                <div class="search-suggestions d-none" id="searchSuggestions" role="listbox"></div>
+            </div>
+        </div>
+    </header>
+
+    <section class="container mt-5 mb-5">
+        <div class="app-card p-4 p-md-5">
+
+            <div class="text-center">
+                <h2 class="h3">Có kiến thức muốn chia sẻ?</h2>
+
+                <p class="text-muted">
+                    Viết bài, nhận phản hồi và cùng cộng đồng phát triển.
+                </p>
+
+                <a class="btn btn-gradient btn-lg d-none" data-auth="user" data-role="USER" href="dashboard.html#write">
+                    <i class="bi bi-pencil"></i>
+                    Viết bài ngay
+                </a>
+
+                <a class="btn btn-gradient btn-lg" data-auth="guest" href="register.html">
+                    Tham gia cộng đồng
+                </a>
+            </div>
+
+            <div class="mt-5">
+                <div class="section-heading mb-3">
+                    <div>
+                        <p class="text-uppercase small fw-semibold text-primary mb-1">
+                            Nổi bật
+                        </p>
+
+                        <h2 id="featuredHeading" class="h3 mb-0">
+                            Bài viết đáng đọc
+                        </h2>
+                    </div>
+                </div>
+
+                <div id="featuredPosts"></div>
+            </div>
+
+        </div>
+    </section>
+
+    <main class="main-content home-main" id="mainContent">
+
+        <section class="container mb-4" aria-labelledby="categoryHeading">
+            <div class="section-heading mb-3">
+                <div>
+                    <p class="text-uppercase small fw-semibold text-primary mb-1">Khám phá</p>
+                    <h2 id="categoryHeading" class="h4 mb-0">Chủ đề nổi bật</h2>
+                </div>
+            </div>
+            <div class="category-chips" id="categoryChips" aria-label="Lọc theo danh mục"></div>
+        </section>
+
+        <section class="container mb-5" aria-label="Bộ lọc bài viết">
+            <div class="filter-panel">
+                <div class="row g-3">
+                    <div class="col-md-4 col-lg-3">
+                        <label class="form-label small" for="filterCategory">Danh mục</label>
+                        <select class="form-select" id="filterCategory">
+                            <option value="">Tất cả danh mục</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 col-lg-3">
+                        <label class="form-label small" for="filterTag">Thẻ</label>
+                        <select class="form-select" id="filterTag">
+                            <option value="">Tất cả thẻ</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 col-lg-3">
+                        <label class="form-label small" for="filterSort">Sắp xếp</label>
+                        <select class="form-select" id="filterSort">
+                            <option value="newest">Mới nhất</option>
+                            <option value="most_viewed">Xem nhiều</option>
+                            <option value="most_liked">Thích nhiều</option>
+                            <option value="most_commented">Nhiều bình luận</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-3">
+                        <label class="form-label small" for="filterKeyword">Từ khóa</label>
+                        <div class="input-group">
+                            <input class="form-control" id="filterKeyword" type="search"
+                                placeholder="Tiêu đề, tác giả, chủ đề, tag...">
+                            <button class="btn btn-primary" id="filterSearchButton" type="button"
+                                aria-label="Tìm kiếm"><i class="bi bi-search"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="container" id="latestPosts" aria-labelledby="latestHeading">
+            <div class="row g-4">
+                <div class="col-xl-9">
+                    <div class="section-heading">
+                        <div>
+                            <p class="text-uppercase small fw-semibold text-primary mb-1">Cập nhật</p>
+                            <h2 id="latestHeading" class="h3 mb-0">Bài viết mới nhất</h2>
+                        </div>
+                        <span class="text-muted" id="resultSummary"></span>
+                    </div>
+                    <div class="row g-4" id="postList"></div>
+                    <nav class="d-flex justify-content-center mt-4" id="paginationContainer" aria-label="Phân trang">
+                    </nav>
+                </div>
+                <aside class="col-xl-3">
+                    <div class="app-card p-4 sticky-xl-top" id="trendingPanel">
+                        <h3 class="h5"><i class="bi bi-fire text-danger"></i> Xem nhiều</h3>
+                        <div class="trending-list" id="trendingList"></div>
+                    </div>
+                </aside>
+            </div>
+        </section>
+
+        <footer class="app-footer">
+            <div class="container">
+                <div class="row g-4">
+                    <div class="col-md-5">
+                        <h5><i class="bi bi-pencil-square"></i> Blog SE</h5>
+                        <p class="text-white-50">Nơi chia sẻ kiến thức và kinh nghiệm về Software Engineering.</p>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <h6>Khám phá</h6><a class="d-block mb-2" href="#latestPosts">Bài mới</a><a class="d-block mb-2"
+                            href="#featuredHeading">Bài nổi bật</a>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <h6>Tài khoản</h6><a class="d-block mb-2" href="dashboard.html">Dashboard</a><a
+                            class="d-block mb-2" href="profile.html">Cá nhân</a>
+                    </div>
+                    <div class="col-md-3">
+                        <h6>Nhóm 2</h6>
+                        <p class="text-white-50 mb-0">Đồ án Blog Software Engineering.</p>
+                    </div>
+                </div>
+                <div class="footer-bottom text-center text-white-50">© 2027 Blog SE · Software Engineering · Nhóm 2
+                </div>
+            </div>
+        </footer>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="js/app.js?v=20260816-account-status"></script>
+        <script src="js/index.js?v=20260807-2208"></script>
+</body>
+
+</html>
